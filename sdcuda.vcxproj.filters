@@ -1,0 +1,71 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CudaCompile Include="ccomplex.cu">
+      <Filter>Source</Filter>
+    </CudaCompile>
+    <CudaCompile Include="deconvolve.cu" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source">
+      <UniqueIdentifier>{615f3c6b-4313-4ec4-aa21-5a69e943e24d}</UniqueIdentifier>
+      <Extensions>
+      </Extensions>
+    </Filter>
+    <Filter Include="Header">
+      <UniqueIdentifier>{0ddcbaf9-8719-4829-8109-314a0b491a4c}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="ccube.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="cinput.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="ckernels.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="cspslice.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="regions.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ccomplex.cuh">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="ccube.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="cinput.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="ckernels.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="cspslice.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="cstate.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="rapidxml.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="rapidxml_iterators.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="rapidxml_print.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="rapidxml_utils.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="regions.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
