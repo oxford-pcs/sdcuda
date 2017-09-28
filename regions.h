@@ -1,7 +1,7 @@
 #pragma once
 
-
 #include <stdio.h>
+
 class rectangle {
 public:
 	rectangle() {};

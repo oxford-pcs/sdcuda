@@ -16,58 +16,6 @@
 using namespace CCfits;
 using std::valarray;
 
-int cube::clear() {
-	std::memset(cube::p_data, 0, cube::memsize);
-	return 0;
-}
-
-cube* cube::copy() {
-	cube* datacube = new cube();
-	datacube->dim = cube::dim;
-	datacube->memsize = cube::memsize;
-	datacube->wavelengths = cube::wavelengths;
-	datacube->n_elements = cube::n_elements;
-	datacube->p_data = datacube->malloc(cube::memsize, true);
-	std::memcpy(datacube->p_data, cube::p_data, cube::memsize);
-	for (std::vector<spslice>::iterator it = cube::slices.begin(); it != cube::slices.end(); it++) {
-		long slice_idx = std::distance(cube::slices.begin(), it);
-		long slice_data_idx = it->p_data - cube::p_data;
-		spslice new_slice(this, &datacube->p_data[slice_data_idx], it->region, datacube->wavelengths[slice_idx]);
-		datacube->slices.push_back(new_slice);
-	}
-	return datacube;
-}
-
-int cube::crop(std::vector<rectangle> crop_regions) {
-	long x_start, y_start, x_size, y_size;
-	for (int i = 0; i < cube::slices.size(); i++) {
-		x_start = crop_regions[i].x_start;
-		y_start = crop_regions[i].y_start;
-		x_size = crop_regions[i].x_size;
-		y_size = crop_regions[i].y_size;
-		cube::slices[i].crop(x_start, y_start, x_size, y_size);
-	}
-	cube::dim[0] = NULL;
-	cube::dim[1] = NULL;
-	cube::n_elements = NULL;
-
-	return 0;
-}
-
-int cube::free(Complex* data) {
-	std::free(data);
-	return 0;
-}
-
-Complex* cube::malloc(long size, bool zero_initialise) {
-	Complex* data = NULL;
-	std::malloc(sizeof(Complex)*size);
-	if (zero_initialise) {
-		std::memset(data, 0, sizeof(Complex)*size);
-	}
-	return data;
-}
-
 int cube::memcpydd(Complex* dst, Complex* src, long size) {
 	cudaMemcpy(dst, src, size, cudaMemcpyDeviceToDevice);
 	if (cudaGetLastError() != cudaSuccess) {
@@ -104,22 +52,6 @@ int cube::memcpyhh(Complex* dst, Complex* src, long size) {
 	return 0;
 }
 
-rectangle cube::rescale(float wavelength_to_rescale_to) {
-	long x_new_size, y_new_size, x_start, y_start;
-	for (std::vector<spslice>::iterator it = cube::slices.begin(); it != cube::slices.end(); it++) {
-		float scale_factor = wavelength_to_rescale_to / it->wavelength;
-		x_new_size = round(it->region.x_size * scale_factor);
-		y_new_size = round(it->region.y_size * scale_factor);
-		x_start = round((it->region.x_size - x_new_size) / 2);
-		y_start = round((it->region.y_size - y_new_size) / 2);
-		it->crop(x_start, y_start, x_new_size, y_new_size);
-	}
-	cube::dim[0] = NULL;
-	cube::dim[1] = NULL;
-	cube::n_elements = NULL;
-	return rectangle(x_start, y_start, x_new_size, y_new_size);
-}
-
 
 hcube::hcube(std::valarray<double> data, std::vector<long> dim, std::vector<double> wavelengths) {
 	hcube::dim = dim;
@@ -134,7 +66,7 @@ hcube::hcube(std::valarray<double> data, std::vector<long> dim, std::vector<doub
 		hcube::p_data[i] = val;
 		if (i % (hcube::dim[0] * hcube::dim[1]) == 0) {
 			long slice_idx = i / (hcube::dim[0] * hcube::dim[1]);
-			spslice new_slice(this, &hcube::p_data[i], rectangle(0, 0, hcube::dim[0], hcube::dim[1]), hcube::wavelengths[slice_idx]);
+			hspslice new_slice(this, &hcube::p_data[i], rectangle(0, 0, hcube::dim[0], hcube::dim[1]), hcube::wavelengths[slice_idx]);
 			hcube::slices.push_back(new_slice);
 		}
 	}
@@ -147,10 +79,10 @@ hcube::hcube(dcube* d_datacube) {
 	hcube::n_elements = d_datacube->n_elements;
 	hcube::p_data = hcube::malloc(hcube::memsize, true);
 	hcube::memcpydh(hcube::p_data, d_datacube->p_data, hcube::memsize);
-	for (std::vector<spslice>::iterator it = d_datacube->slices.begin(); it != d_datacube->slices.end(); it++) {
+	for (std::vector<dspslice>::iterator it = d_datacube->slices.begin(); it != d_datacube->slices.end(); it++) {
 		long slice_idx = std::distance(d_datacube->slices.begin(), it);
 		long slice_data_idx = it->p_data - d_datacube->p_data;
-		spslice new_slice(this, &hcube::p_data[slice_data_idx], it->region, hcube::wavelengths[slice_idx]);
+		hspslice new_slice(this, &hcube::p_data[slice_data_idx], it->region, hcube::wavelengths[slice_idx]);
 		hcube::slices.push_back(new_slice);
 	}
 }
@@ -173,13 +105,29 @@ hcube* hcube::copy() {
 	datacube->n_elements = hcube::n_elements;
 	datacube->p_data = datacube->malloc(hcube::memsize, true);
 	datacube->memcpyhh(datacube->p_data, hcube::p_data, hcube::memsize);
-	for (std::vector<spslice>::iterator it = hcube::slices.begin(); it != hcube::slices.end(); it++) {
+	for (std::vector<hspslice>::iterator it = hcube::slices.begin(); it != hcube::slices.end(); it++) {
 		long slice_idx = std::distance(hcube::slices.begin(), it);
 		long slice_data_idx = it->p_data - hcube::p_data;
-		spslice new_slice(this, &datacube->p_data[slice_data_idx], it->region, datacube->wavelengths[slice_idx]);
+		hspslice new_slice(this, &datacube->p_data[slice_data_idx], it->region, datacube->wavelengths[slice_idx]);
 		datacube->slices.push_back(new_slice);
 	}
 	return datacube;
+}
+
+int hcube::crop(std::vector<rectangle> crop_regions) {
+	long x_start, y_start, x_size, y_size;
+	for (int i = 0; i < hcube::slices.size(); i++) {
+		x_start = crop_regions[i].x_start;
+		y_start = crop_regions[i].y_start;
+		x_size = crop_regions[i].x_size;
+		y_size = crop_regions[i].y_size;
+		hcube::slices[i].crop(x_start, y_start, x_size, y_size);
+	}
+	hcube::dim[0] = NULL;
+	hcube::dim[1] = NULL;
+	hcube::n_elements = NULL;
+
+	return 0;
 }
 
 int hcube::free(Complex* data) {
@@ -195,7 +143,7 @@ int hcube::free(Complex* data) {
 std::valarray<double> hcube::getDataAsValarray(complex_part part) {
 	std::valarray<double> data(hcube::n_elements);
 	long data_offset = 0;
-	for (std::vector<spslice>::iterator it = hcube::slices.begin(); it != hcube::slices.end(); it++) {
+	for (std::vector<hspslice>::iterator it = hcube::slices.begin(); it != hcube::slices.end(); it++) {
 		for (int i = 0; i < it->n_elements; i++) {
 			if (part == REAL) {
 				data[i + data_offset] = it->p_data[i].x;
@@ -225,6 +173,22 @@ Complex* hcube::malloc(long size, bool zero_initialise) {
 		memset(data, 0, size);
 	}
 	return data;
+}
+
+rectangle hcube::rescale(float wavelength_to_rescale_to) {
+	long x_new_size, y_new_size, x_start, y_start;
+	for (std::vector<hspslice>::iterator it = hcube::slices.begin(); it != hcube::slices.end(); it++) {
+		float scale_factor = wavelength_to_rescale_to / it->wavelength;
+		x_new_size = round(it->region.x_size * scale_factor);
+		y_new_size = round(it->region.y_size * scale_factor);
+		x_start = round((it->region.x_size - x_new_size) / 2);
+		y_start = round((it->region.y_size - y_new_size) / 2);
+		it->crop(x_start, y_start, x_new_size, y_new_size);
+	}
+	hcube::dim[0] = NULL;
+	hcube::dim[1] = NULL;
+	hcube::n_elements = NULL;
+	return rectangle(x_start, y_start, x_new_size, y_new_size);
 }
 
 int hcube::write(complex_part part, string out_filename, bool clobber) {
@@ -259,10 +223,10 @@ dcube::dcube(hcube* h_datacube) {
 	dcube::n_elements = h_datacube->n_elements;
 	dcube::p_data = dcube::malloc(dcube::memsize, true);
 	dcube::memcpyhd(dcube::p_data, h_datacube->p_data, dcube::memsize);
-	for (std::vector<spslice>::iterator it = h_datacube->slices.begin(); it != h_datacube->slices.end(); it++) {
+	for (std::vector<hspslice>::iterator it = h_datacube->slices.begin(); it != h_datacube->slices.end(); it++) {
 		long slice_idx = std::distance(h_datacube->slices.begin(), it);
 		long slice_data_idx = it->p_data - h_datacube->p_data;
-		spslice new_slice(this, &dcube::p_data[slice_data_idx], it->region, dcube::wavelengths[slice_idx]);
+		dspslice new_slice(this, &dcube::p_data[slice_data_idx], it->region, dcube::wavelengths[slice_idx]);
 		dcube::slices.push_back(new_slice);
 	}
 }
@@ -283,18 +247,34 @@ dcube* dcube::copy() {
 	datacube->n_elements = dcube::n_elements;
 	datacube->p_data = datacube->malloc(dcube::memsize, true);
 	datacube->memcpyhh(datacube->p_data, dcube::p_data, dcube::memsize);
-	for (std::vector<spslice>::iterator it = dcube::slices.begin(); it != dcube::slices.end(); it++) {
+	for (std::vector<dspslice>::iterator it = dcube::slices.begin(); it != dcube::slices.end(); it++) {
 		long slice_idx = std::distance(dcube::slices.begin(), it);
 		long slice_data_idx = it->p_data - dcube::p_data;
-		spslice new_slice(this, &datacube->p_data[slice_data_idx], it->region, datacube->wavelengths[slice_idx]);
+		dspslice new_slice(this, &datacube->p_data[slice_data_idx], it->region, datacube->wavelengths[slice_idx]);
 		datacube->slices.push_back(new_slice);
 	}
 	return datacube;
 }
 
+int dcube::crop(std::vector<rectangle> crop_regions) {
+	long x_start, y_start, x_size, y_size;
+	for (int i = 0; i < dcube::slices.size(); i++) {
+		x_start = crop_regions[i].x_start;
+		y_start = crop_regions[i].y_start;
+		x_size = crop_regions[i].x_size;
+		y_size = crop_regions[i].y_size;
+		dcube::slices[i].crop(x_start, y_start, x_size, y_size);
+	}
+	dcube::dim[0] = NULL;
+	dcube::dim[1] = NULL;
+	dcube::n_elements = NULL;
+
+	return 0;
+}
+
 int dcube::fft(bool inverse) {
 	int DIRECTION = inverse == true ? CUFFT_FORWARD : CUFFT_INVERSE;
-	for (std::vector<spslice>::iterator it = dcube::slices.begin(); it != dcube::slices.end(); it++) {
+	for (std::vector<dspslice>::iterator it = dcube::slices.begin(); it != dcube::slices.end(); it++) {
 		cufftHandle plan;
 		if (cufftPlan2d(&plan, it->region.x_size, it->region.y_size, CUFFT_Z2Z) != CUFFT_SUCCESS) {
 			fprintf(stderr, "CUFFT Error: Unable to create plan\n");
@@ -335,7 +315,18 @@ Complex* dcube::malloc(long size, bool zero_initialise) {
 	return data;
 }
 
-
-
-
-
+rectangle dcube::rescale(float wavelength_to_rescale_to) {
+	long x_new_size, y_new_size, x_start, y_start;
+	for (std::vector<dspslice>::iterator it = dcube::slices.begin(); it != dcube::slices.end(); it++) {
+		float scale_factor = wavelength_to_rescale_to / it->wavelength;
+		x_new_size = round(it->region.x_size * scale_factor);
+		y_new_size = round(it->region.y_size * scale_factor);
+		x_start = round((it->region.x_size - x_new_size) / 2);
+		y_start = round((it->region.y_size - y_new_size) / 2);
+		it->crop(x_start, y_start, x_new_size, y_new_size);
+	}
+	dcube::dim[0] = NULL;
+	dcube::dim[1] = NULL;
+	dcube::n_elements = NULL;
+	return rectangle(x_start, y_start, x_new_size, y_new_size);
+}

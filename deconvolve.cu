@@ -1,44 +1,37 @@
 #include <cuda_runtime.h>
 #include <cufft.h>
+#include "cublas_v2.h"
+#include "getopt.h"
 
+#include "config.h"
+
+#include "cclparser.h"
 #include "cinput.h"
 #include "ccube.h"
 #include "ccomplex.cuh"
 #include "regions.h"
 #include "ckernels.h"
 
-const int nCUDABLOCKS = 32;
-const int nCUDATHREADSPERBLOCK = 256;
-
-const int LANCZOS_FILTER_SIZE = 3;
-
-inline bool is_input_ok(int argc, char **argv) {
-	if (argc != 4) {
-		return false;
-	} else {
-	}
-	return true;
-}
-
 int main(int argc, char **argv) {
-	if (!is_input_ok(argc, argv)) {
-		printf("Input check failed.\n");
-		return 1;
+	// parse command line input
+	cclparser clparser = cclparser(argc, argv);
+	if (clparser.state != CCLPARSER_OK) {
+		exit(0);
 	}
 
-	std::string in_fits_filename = argv[1];
-	std::string in_params_filename = argv[2];
-	std::string out_fits_filename = argv[3];
+	// process input files 
+	input input(clparser.in_FITS_filename, clparser.in_params_filename, true);
+	if (input.state != CINPUT_OK) {
+		exit(0);
+	}
 
-	input input(in_fits_filename, in_params_filename, true);
+	// loop through each exposure
+	for (int i = 0; i<input.dim[2]; i++) {
+		hcube* h_datacube = input.makeCube(i, true);	// make cube on host
+		std::vector<rectangle> crop_regions;			// variable to keep 
 
-	long n_exposures = input.dim[2];
-	for (int i = 0; i < n_exposures; i++) {
-		// make cube on host
-		hcube* h_datacube = input.makeCube(i, true);
-		std::vector<rectangle> crop_regions;
-
-		// crop to square, even sided. this is required for fftshifting
+		// crop each exposure to a square, even sided with dimensions corresponding to the smallest side.
+		// (this is required for fftshifting)
 		long min_dim;
 		if (h_datacube->dim[0] >= h_datacube->dim[1]) {
 			min_dim = h_datacube->dim[1];
@@ -51,10 +44,15 @@ int main(int argc, char **argv) {
 		for (int i = 0; i < h_datacube->slices.size(); i++) {
 			crop_regions.push_back(rectangle(0, 0, min_dim, min_dim));
 		}
+
 		h_datacube->crop(crop_regions);
-		h_datacube->dim[0] = min_dim;
+		// need to manually reset the dimensions [dim[01?]] and number of elements [n_elements] for the datacube 
+		// as the datacube crop function sets these to NULL (the operation is in itself "unsafe", in the sense that 
+		// it is possible to make the cube inconsistent by ending up with slices of differing sizes).
+		h_datacube->dim[0] = min_dim;	
 		h_datacube->dim[1] = min_dim;
 		h_datacube->n_elements = h_datacube->dim[0] * h_datacube->dim[1] * h_datacube->dim[2];
+
 
 		// copy host data over to device
 		dcube* d_datacube = new dcube(h_datacube);
@@ -64,7 +62,7 @@ int main(int argc, char **argv) {
 		if (cudaThreadSynchronize() != cudaSuccess){
 			fprintf(stderr, "Cuda error: Failed to synchronize\n");
 		}
-		cScalePointwise << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(d_datacube->p_data, (1. / (d_datacube->dim[0] * d_datacube->dim[1])), d_datacube->n_elements);
+		cScalePointwise << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(d_datacube->p_data, (1. / (d_datacube->dim[0] * d_datacube->dim[1])), d_datacube->memsize/sizeof(Complex));
 		if (cudaThreadSynchronize() != cudaSuccess){
 			fprintf(stderr, "Cuda error: Failed to synchronize\n");
 		}
@@ -113,7 +111,7 @@ int main(int argc, char **argv) {
 		// crop cube to smallest dimension
 		crop_regions.clear();
 		std::vector<long> pre_shrink_sizes;
-		for (std::vector<spslice>::iterator it = d_datacube->slices.begin(); it != d_datacube->slices.end(); it++) {
+		for (std::vector<dspslice>::iterator it = d_datacube->slices.begin(); it != d_datacube->slices.end(); it++) {
 			pre_shrink_sizes.push_back(it->region.x_size);
 			rectangle subregion = rect - it->region;
 			crop_regions.push_back(subregion);
@@ -154,12 +152,10 @@ int main(int argc, char **argv) {
 		d_datacube = d_datacube_tmp;
 		delete kernel;
 
-		//TODO: CROP OFF EDGES!
-
 		// move back to host
 		hcube* h_datacube_fft = new hcube(d_datacube);
 
-		h_datacube_fft->write(AMPLITUDE, out_fits_filename, true);
+		h_datacube_fft->write(AMPLITUDE, clparser.out_FITS_filename, true);
 
 		delete h_datacube;
 		delete d_datacube;

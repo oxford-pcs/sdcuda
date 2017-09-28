@@ -32,11 +32,14 @@
     <ClCompile Include="regions.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="getopt.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="cclparser.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ccomplex.cuh">
-      <Filter>Header</Filter>
-    </ClInclude>
     <ClInclude Include="ccube.h">
       <Filter>Header</Filter>
     </ClInclude>
@@ -47,9 +50,6 @@
       <Filter>Header</Filter>
     </ClInclude>
     <ClInclude Include="cspslice.h">
-      <Filter>Header</Filter>
-    </ClInclude>
-    <ClInclude Include="cstate.h">
       <Filter>Header</Filter>
     </ClInclude>
     <ClInclude Include="rapidxml.hpp">
@@ -65,6 +65,18 @@
       <Filter>Header</Filter>
     </ClInclude>
     <ClInclude Include="regions.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="ccomplex.cuh">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="getopt.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="cclparser.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="config.h">
       <Filter>Header</Filter>
     </ClInclude>
   </ItemGroup>
