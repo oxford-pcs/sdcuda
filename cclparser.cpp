@@ -8,7 +8,7 @@
 
 cclparser::cclparser(int argc, char **argv) {
 	/*
-	  This class parses command line input and checks if it's OK.
+	This class parses command line input and checks if it's OK.
 	*/
 	cclparser::argc = argc;
 	cclparser::argv = argv;
@@ -19,9 +19,9 @@ cclparser::cclparser(int argc, char **argv) {
 
 bool cclparser::check() {
 	/* 
-		This function checks if we have both the correct number of inputs and 
-		if the inputs are valid, e.g. if input files exist. On success, it will
-		set [state] to CCLPARSER_OK.
+    This function checks if we have both the correct number of inputs and 
+    if the inputs are valid, e.g. if input files exist. On success, it will
+	set [state] to CCLPARSER_OK.
 	*/
 	if (cclparser::nargs != 3) {
 		fprintf(stderr, "Invalid number of parameters specified.");
@@ -42,8 +42,8 @@ bool cclparser::check() {
 
 bool cclparser::parse() {
 	/*
-	  This function parses the command line input arguments. On success, it will 
-	  set [state] to CCLPARSER_WARN_NOT_CHECKED.
+	This function parses the command line input arguments. On success, it will 
+	set [state] to CCLPARSER_WARN_NOT_CHECKED.
 	*/
 	int opterr = 0;
 	int c;

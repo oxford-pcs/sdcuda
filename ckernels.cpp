@@ -6,15 +6,6 @@
 #include <cuda_runtime.h>
 #include <cufft.h>
 
-#define M_PI	3.14159265358979323846
-
-inline double nsinc(double x) {
-	if (x == 0) {
-		return 1;
-	} else {
-		return sin(M_PI*x) / (M_PI*x);
-	}
-}
 
 Kernel::~Kernel() {
 	Kernel::free(Kernel::p_kcoeffs);

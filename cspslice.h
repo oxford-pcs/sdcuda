@@ -13,7 +13,6 @@ class spslice {
 public:
 	spslice() {};
 	~spslice() {};
-	cube* datacube;
 	Complex* p_data;
 	rectangle region;
 	long n_elements;
@@ -23,6 +22,7 @@ public:
 
 class hspslice : public spslice {
 public:
+	hcube* datacube;
 	hspslice(hcube*, Complex*, rectangle, double);
 	~hspslice() {};
 	int crop(long, long, long, long);
@@ -30,6 +30,7 @@ public:
 
 class dspslice : public spslice {
 public:
+	dcube* datacube;
 	dspslice(dcube*, Complex*, rectangle, double);
 	~dspslice() {};
 	int crop(long, long, long, long);

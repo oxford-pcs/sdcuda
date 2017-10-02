@@ -16,46 +16,14 @@
 using namespace CCfits;
 using std::valarray;
 
-int cube::memcpydd(Complex* dst, Complex* src, long size) {
-	cudaMemcpy(dst, src, size, cudaMemcpyDeviceToDevice);
-	if (cudaGetLastError() != cudaSuccess) {
-		fprintf(stderr, "Cuda error: Failed to copy memory to device\n");
-		return 1;
-	}
-	return 0;
-}
-
-int cube::memcpydh(Complex* dst, Complex* src, long size) {
-	cudaMemcpy(dst, src, size, cudaMemcpyDeviceToHost);
-	if (cudaGetLastError() != cudaSuccess) {
-		fprintf(stderr, "Cuda error: Failed to copy memory to host\n");
-		return 1;
-	}
-	return 0;
-}
-
-int cube::memcpyhd(Complex* dst, Complex* src, long size) {
-	cudaMemcpy(dst, src, size, cudaMemcpyHostToDevice);
-	if (cudaGetLastError() != cudaSuccess) {
-		fprintf(stderr, "Cuda error: Failed to copy memory to device\n");
-		return 1;
-	}
-	return 0;
-}
-
-int cube::memcpyhh(Complex* dst, Complex* src, long size) {
-	cudaMemcpy(dst, src, size, cudaMemcpyHostToHost);
-	if (cudaGetLastError() != cudaSuccess) {
-		fprintf(stderr, "Cuda error: Failed to copy memory to host\n");
-		return 1;
-	}
-	return 0;
-}
-
-
 hcube::hcube(std::valarray<double> data, std::vector<long> dim, std::vector<double> wavelengths) {
+	/*
+	Construct a cube in host memory using a double valarray [data] with dimensions [dim] and 
+	wavelengths [wavelengths].
+	*/
 	hcube::dim = dim;
 	hcube::wavelengths = wavelengths;
+	hcube::domain = SPATIAL;
 	hcube::n_elements = std::accumulate(begin(hcube::dim), end(hcube::dim), 1, std::multiplies<long>());
 	hcube::memsize = n_elements*sizeof(Complex);
 	hcube::p_data = hcube::malloc(hcube::memsize, true);
@@ -72,7 +40,31 @@ hcube::hcube(std::valarray<double> data, std::vector<long> dim, std::vector<doub
 	}
 }
 
+hcube::hcube(std::valarray<Complex> data, std::vector<long> dim, std::vector<double> wavelengths, domains domain) {
+	/*
+	Construct a cube in host memory using a Complex valarray [data] (in domain [domain]) with dimensions [dim] and
+	wavelengths [wavelengths].
+	*/
+	hcube::dim = dim;
+	hcube::wavelengths = wavelengths;
+	hcube::domain = domain;
+	hcube::n_elements = std::accumulate(begin(hcube::dim), end(hcube::dim), 1, std::multiplies<long>());
+	hcube::memsize = n_elements*sizeof(Complex);
+	hcube::p_data = hcube::malloc(hcube::memsize, true);
+	for (int i = 0; i < hcube::n_elements; i++) {
+		hcube::p_data[i] = data[i];
+		if (i % (hcube::dim[0] * hcube::dim[1]) == 0) {
+			long slice_idx = i / (hcube::dim[0] * hcube::dim[1]);
+			hspslice new_slice(this, &hcube::p_data[i], rectangle(0, 0, hcube::dim[0], hcube::dim[1]), hcube::wavelengths[slice_idx]);
+			hcube::slices.push_back(new_slice);
+		}
+	}
+}
+
 hcube::hcube(dcube* d_datacube) {
+	/*
+	Construct a cube in host memory by copying a cube [d_datacube] from device memory.
+	*/
 	hcube::dim = d_datacube->dim;
 	hcube::memsize = d_datacube->memsize;
 	hcube::wavelengths = d_datacube->wavelengths;
@@ -93,15 +85,22 @@ hcube::~hcube() {
 }
 
 int hcube::clear() {
+	/*
+	Clear data from host cube.
+	*/
 	memset(hcube::p_data, 0, hcube::memsize);
 	return 0;
 }
 
 hcube* hcube::copy() {
+	/*
+	Deep copy an instance of a host cube.
+	*/
 	hcube* datacube = new hcube();
 	datacube->dim = hcube::dim;
 	datacube->memsize = hcube::memsize;
 	datacube->wavelengths = hcube::wavelengths;
+	datacube->domain = hcube::domain;
 	datacube->n_elements = hcube::n_elements;
 	datacube->p_data = datacube->malloc(hcube::memsize, true);
 	datacube->memcpyhh(datacube->p_data, hcube::p_data, hcube::memsize);
@@ -115,6 +114,13 @@ hcube* hcube::copy() {
 }
 
 int hcube::crop(std::vector<rectangle> crop_regions) {
+	/*
+	Crop each slice of a host cube by the corresponding indexed region in [crop_regions].
+
+	This operation is in itself "unsafe", in the sense that it is possible to make the cube inconsistent
+	by ending up with slices of differing sizes by using different sized regions, we therefore require 
+	the user to explicitly state what the new dimensions should be.
+	*/
 	long x_start, y_start, x_size, y_size;
 	for (int i = 0; i < hcube::slices.size(); i++) {
 		x_start = crop_regions[i].x_start;
@@ -130,17 +136,10 @@ int hcube::crop(std::vector<rectangle> crop_regions) {
 	return 0;
 }
 
-int hcube::free(Complex* data) {
-	if (data != NULL) {
-		cudaFreeHost(data);
-		if (cudaGetLastError() != cudaSuccess) {
-			fprintf(stderr, "Cuda error: Failed to free memory on host\n");
-		}
-	}
-	return 0;
-}
-
 std::valarray<double> hcube::getDataAsValarray(complex_part part) {
+	/*
+	Get data from host cube corresponding to part [part].
+	*/
 	std::valarray<double> data(hcube::n_elements);
 	long data_offset = 0;
 	for (std::vector<hspslice>::iterator it = hcube::slices.begin(); it != hcube::slices.end(); it++) {
@@ -163,35 +162,38 @@ std::valarray<double> hcube::getDataAsValarray(complex_part part) {
 	return data;
 }
 
-Complex* hcube::malloc(long size, bool zero_initialise) {
-	Complex* data = NULL;
-	cudaMallocHost(&(data), size);
-	if (cudaGetLastError() != cudaSuccess) {
-		fprintf(stderr, "Cuda error: Failed to allocate\n");
+int hcube::rescale(float wavelength_to_rescale_to, rectangle& rect) {
+	/*
+	Rescale slices of a device cube to the wavelength [wavelength_to_rescale_to]. A rectangle representing the 
+	slice with the smallest region [smallest_region] is populated.
+	
+	Note that this only makes sense when working on data in the frequency domain and so a CCUBE_FFT_BAD_DOMAIN 
+	error will be thrown if [domain] is SPATIAL.
+	*/
+	if (hcube::domain == FREQUENCY) {
+		long x_new_size, y_new_size, x_start, y_start;
+		for (std::vector<hspslice>::iterator it = hcube::slices.begin(); it != hcube::slices.end(); it++) {
+			float scale_factor = wavelength_to_rescale_to / it->wavelength;
+			x_new_size = round(it->region.x_size * scale_factor);
+			y_new_size = round(it->region.y_size * scale_factor);
+			x_start = round((it->region.x_size - x_new_size) / 2);
+			y_start = round((it->region.y_size - y_new_size) / 2);
+			it->crop(x_start, y_start, x_new_size, y_new_size);
+		}
+		hcube::dim[0] = NULL;
+		hcube::dim[1] = NULL;
+		hcube::n_elements = NULL;
+		rect = rectangle(x_start, y_start, x_new_size, y_new_size);
+	} else {
+		throw_error(CCUBE_FFT_BAD_DOMAIN);
 	}
-	if (zero_initialise) {
-		memset(data, 0, size);
-	}
-	return data;
-}
-
-rectangle hcube::rescale(float wavelength_to_rescale_to) {
-	long x_new_size, y_new_size, x_start, y_start;
-	for (std::vector<hspslice>::iterator it = hcube::slices.begin(); it != hcube::slices.end(); it++) {
-		float scale_factor = wavelength_to_rescale_to / it->wavelength;
-		x_new_size = round(it->region.x_size * scale_factor);
-		y_new_size = round(it->region.y_size * scale_factor);
-		x_start = round((it->region.x_size - x_new_size) / 2);
-		y_start = round((it->region.y_size - y_new_size) / 2);
-		it->crop(x_start, y_start, x_new_size, y_new_size);
-	}
-	hcube::dim[0] = NULL;
-	hcube::dim[1] = NULL;
-	hcube::n_elements = NULL;
-	return rectangle(x_start, y_start, x_new_size, y_new_size);
+	return 0;
 }
 
 int hcube::write(complex_part part, string out_filename, bool clobber) {
+	/*
+	Write hard copy of complex part [part] of host datacube to file [out_filename].
+	*/
 	long naxis = hcube::dim.size();
 	long naxes[3] = { hcube::dim[0], hcube::dim[1], hcube::dim[2] };
 	long n_elements = std::accumulate(begin(hcube::dim), end(hcube::dim), 1, std::multiplies<long>());
@@ -217,9 +219,13 @@ int hcube::write(complex_part part, string out_filename, bool clobber) {
 
 
 dcube::dcube(hcube* h_datacube) {
+	/*
+	Construct a cube in device memory by copying a cube [h_datacube] from host memory.
+	*/
 	dcube::dim = h_datacube->dim;
 	dcube::memsize = h_datacube->memsize;
 	dcube::wavelengths = h_datacube->wavelengths;
+	dcube::domain = h_datacube->domain;
 	dcube::n_elements = h_datacube->n_elements;
 	dcube::p_data = dcube::malloc(dcube::memsize, true);
 	dcube::memcpyhd(dcube::p_data, h_datacube->p_data, dcube::memsize);
@@ -232,6 +238,9 @@ dcube::dcube(hcube* h_datacube) {
 }
 
 int dcube::clear() {
+	/*
+	Clear data from device cube.
+	*/
 	cudaMemset(dcube::p_data, 0, dcube::memsize);
 	if (cudaGetLastError() != cudaSuccess) {
 		fprintf(stderr, "Cuda error: Failed to memset\n");
@@ -240,10 +249,14 @@ int dcube::clear() {
 }
 
 dcube* dcube::copy() {
+	/*
+	Deep copy an instance of a device cube.
+	*/
 	dcube* datacube = new dcube();
 	datacube->dim = dcube::dim;
 	datacube->memsize = dcube::memsize;
 	datacube->wavelengths = dcube::wavelengths;
+	datacube->domain = dcube::domain;
 	datacube->n_elements = dcube::n_elements;
 	datacube->p_data = datacube->malloc(dcube::memsize, true);
 	datacube->memcpyhh(datacube->p_data, dcube::p_data, dcube::memsize);
@@ -257,6 +270,9 @@ dcube* dcube::copy() {
 }
 
 int dcube::crop(std::vector<rectangle> crop_regions) {
+	/*
+	Crop each slice of a device cube by the corresponding indexed region in [crop_regions].
+	*/
 	long x_start, y_start, x_size, y_size;
 	for (int i = 0; i < dcube::slices.size(); i++) {
 		x_start = crop_regions[i].x_start;
@@ -273,13 +289,17 @@ int dcube::crop(std::vector<rectangle> crop_regions) {
 }
 
 int dcube::fft(bool inverse) {
+	/* 
+	Perform a fast fourier transform on the device data in the direction specified by the [inverse] flag.
+	*/
 	int DIRECTION = inverse == true ? CUFFT_FORWARD : CUFFT_INVERSE;
 	for (std::vector<dspslice>::iterator it = dcube::slices.begin(); it != dcube::slices.end(); it++) {
 		cufftHandle plan;
 		if (cufftPlan2d(&plan, it->region.x_size, it->region.y_size, CUFFT_Z2Z) != CUFFT_SUCCESS) {
 			fprintf(stderr, "CUFFT Error: Unable to create plan\n");
 		}
-		if (cufftExecZ2Z(plan, it->p_data, it->p_data, DIRECTION) != CUFFT_SUCCESS) {
+		if (cufftExecZ2Z(plan, reinterpret_cast<cufftDoubleComplex*>(it->p_data), 
+			reinterpret_cast<cufftDoubleComplex*>(it->p_data), DIRECTION) != CUFFT_SUCCESS) {
 			fprintf(stderr, "CUFFT Error: Unable to execute plan\n");
 		}
 		if (cudaThreadSynchronize() != cudaSuccess){
@@ -287,46 +307,43 @@ int dcube::fft(bool inverse) {
 		}
 		cufftDestroy(plan);
 	}
-	return 0;
-}
-
-int dcube::free(Complex* data) {
-	if (data != NULL) {
-		cudaFree(data);
-		if (cudaGetLastError() != cudaSuccess) {
-			fprintf(stderr, "Cuda error: Failed to free memory on device\n");
-		}
+	switch (dcube::domain) {
+	case (SPATIAL) :
+		dcube::domain = FREQUENCY;
+		break;
+	case (FREQUENCY) :
+		dcube::domain = SPATIAL;
+		break;
 	}
 	return 0;
 }
 
-Complex* dcube::malloc(long size, bool zero_initialise) {
-	Complex* data = NULL;
-	cudaMalloc((void**)&(data), size);
-	if (cudaGetLastError() != cudaSuccess) {
-		fprintf(stderr, "Cuda error: Failed to allocate\n");
-	}
-	if (zero_initialise) {
-		cudaMemset(data, 0, size);
-		if (cudaGetLastError() != cudaSuccess) {
-			fprintf(stderr, "Cuda error: Failed to memset\n");
+int dcube::rescale(float wavelength_to_rescale_to, rectangle &smallest_region) {
+	/*
+	Rescale slices of a device cube to the wavelength [wavelength_to_rescale_to]. A rectangle representing the 
+	slice with the smallest region [smallest_region] is populated.
+	
+	Note that this only makes sense when working on data in the frequency domain and so a CCUBE_FFT_BAD_DOMAIN 
+	error will be thrown if [domain] is SPATIAL.
+	*/
+	if (dcube::domain == FREQUENCY) {
+		long x_new_size, y_new_size, x_start, y_start;
+		for (std::vector<dspslice>::iterator it = dcube::slices.begin(); it != dcube::slices.end(); it++) {
+			float scale_factor = wavelength_to_rescale_to / it->wavelength;
+			x_new_size = round(it->region.x_size * scale_factor);
+			y_new_size = round(it->region.y_size * scale_factor);
+			x_start = round((it->region.x_size - x_new_size) / 2);
+			y_start = round((it->region.y_size - y_new_size) / 2);
+			it->crop(x_start, y_start, x_new_size, y_new_size);
 		}
+		dcube::dim[0] = NULL;
+		dcube::dim[1] = NULL;
+		dcube::n_elements = NULL;
+		smallest_region = rectangle(x_start, y_start, x_new_size, y_new_size);
 	}
-	return data;
-}
-
-rectangle dcube::rescale(float wavelength_to_rescale_to) {
-	long x_new_size, y_new_size, x_start, y_start;
-	for (std::vector<dspslice>::iterator it = dcube::slices.begin(); it != dcube::slices.end(); it++) {
-		float scale_factor = wavelength_to_rescale_to / it->wavelength;
-		x_new_size = round(it->region.x_size * scale_factor);
-		y_new_size = round(it->region.y_size * scale_factor);
-		x_start = round((it->region.x_size - x_new_size) / 2);
-		y_start = round((it->region.y_size - y_new_size) / 2);
-		it->crop(x_start, y_start, x_new_size, y_new_size);
+	else {
+		throw_error(CCUBE_FFT_BAD_DOMAIN);
 	}
-	dcube::dim[0] = NULL;
-	dcube::dim[1] = NULL;
-	dcube::n_elements = NULL;
-	return rectangle(x_start, y_start, x_new_size, y_new_size);
+	return 0;
+	
 }

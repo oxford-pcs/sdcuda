@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <CudaCompile Include="deconvolve.cu" />
     <CudaCompile Include="ccomplex.cu">
       <Filter>Source</Filter>
     </CudaCompile>
-    <CudaCompile Include="deconvolve.cu" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source">
@@ -38,6 +38,15 @@
     <ClCompile Include="cclparser.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="ccomplex.cuh">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="cspaxel.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="cmemory.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ccube.h">
@@ -67,9 +76,6 @@
     <ClInclude Include="regions.h">
       <Filter>Header</Filter>
     </ClInclude>
-    <ClInclude Include="ccomplex.cuh">
-      <Filter>Source</Filter>
-    </ClInclude>
     <ClInclude Include="getopt.h">
       <Filter>Header</Filter>
     </ClInclude>
@@ -77,6 +83,12 @@
       <Filter>Header</Filter>
     </ClInclude>
     <ClInclude Include="config.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="cspaxel.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="cmemory.h">
       <Filter>Header</Filter>
     </ClInclude>
   </ItemGroup>

@@ -2,8 +2,7 @@
 
 #include <cuda_runtime.h>
 #include <cufft.h>
-
-typedef double2 Complex;
+#include <cula.h>
 
 enum quadrant {
 	NONE,
@@ -12,7 +11,6 @@ enum quadrant {
 	Q3,
 	Q4
 };
-
 enum complex_part {
 	REAL,
 	IMAGINARY,
@@ -20,19 +18,27 @@ enum complex_part {
 	PHASE
 };
 
-__device__ __host__ Complex cAdd(Complex, double);
-__device__ __host__ Complex cConvolveKernel(int, Complex*, long, double*, long);
+struct Complex {
+	double x, y;
+	operator double2() const {
+		double2 a{ x, y };
+		return a;
+	};
+};
+
+__device__ __host__ Complex cAdd(Complex, Complex);
+__device__ __host__ Complex cConvolveKernelReal(int, Complex*, long, double*, long);
 __device__ __host__ double cGetAmplitude(Complex);
 __device__ __host__ double cGetPhase(Complex);
 __device__ __host__ long cGet1DIndexFrom2DXY(long2, long);
 __device__ __host__ long2 cGet2DXYFrom1DIndex(long, long);
-__device__ __host__ quadrant cGet2DQuadrantFrom1DIndex(long, long, long, long, long);
+__device__ __host__ quadrant cGet2DQuadrantFrom1DIndex(long, long, long, long);
 __device__ __host__ Complex cScale(Complex, double);
-__global__ void cAddPointwise2D(Complex*, Complex*, long);
-__global__ void cConvolveKernelPointwise(Complex*, Complex*, long, double*, long);
+__device__ __host__ Complex cSub(Complex, Complex);
+__global__ void cAdd2D(Complex*, Complex*, long);
+__global__ void cConvolveKernelReal2D(Complex*, Complex*, long, double*, long);
 __global__ void cFftShift2D(Complex*, Complex*, long);
 __global__ void cIFftShift2D(Complex*, Complex*, long);
-__global__ void cScalePointwise(Complex*, double, long);
+__global__ void cScale2D(Complex*, double, long);
 __global__ void cSetComplexRealAsAmplitude(Complex*, long);
-__global__ void cShift2D(Complex*, Complex*, long, long, long);
-__global__ void cSubPointwise2D(Complex*, Complex*, long);
+__global__ void cSub2D(Complex*, Complex*, long);

@@ -17,8 +17,8 @@ using std::valarray;
 
 input::input(std::string in_fits_filename, std::string in_params_filename, bool verbose) {
 	/*
-	  This class houses all the necessary functions required to convert input FITS and parameter files into a 
-	  host cube instance.
+	This class houses all the necessary functions required to convert input FITS and parameter files into a 
+	host cube instance.
 	*/
 	input::in_fits_filename = in_fits_filename;
 	input::in_params_filename = in_params_filename;
@@ -29,7 +29,7 @@ input::input(std::string in_fits_filename, std::string in_params_filename, bool 
 
 hcube* input::makeCube(long n_exposure, bool verbose) {
 	/* 
-	  This function constructs a host cube instance using the necessary class variables for the [n_exposure] exposure.
+	This function constructs a host cube instance using the necessary class variables for the [n_exposure] exposure.
 	*/
 	if (input::state == CINPUT_OK) {
 		try {
@@ -58,8 +58,8 @@ hcube* input::makeCube(long n_exposure, bool verbose) {
 
 bool input::processFITSFile(string filename, bool verbose) {
 	/*
-	  This function takes a FITS file and processes it, reading the FITS file data and dimensions into the class variables 
-	  [data] and [dim]. On success, it will set [state] to CINPUT_OK.
+    This function takes a FITS file and processes it, reading the FITS file data and dimensions into the class variables 
+	[data] and [dim]. On success, it will set [state] to CINPUT_OK.
 	*/
 	input::readFITSFile(input::data, input::dim, filename, verbose);
 	if (verbose) {
@@ -79,9 +79,9 @@ bool input::processFITSFile(string filename, bool verbose) {
 
 bool input::processParametersFile(string filename, bool verbose) {
 	/*
-	  This function takes an XML parameters file and processes it, creating a list of wavelengths for each slice of 
-	  the cube and populating the class variable [wavelengths].  On success, it will set [state] to 
-	  CINPUT_NOT_PROCESSED_FITS_FILE.
+    This function takes an XML parameters file and processes it, creating a list of wavelengths for each slice of 
+	the cube and populating the class variable [wavelengths].  On success, it will set [state] to 
+	CINPUT_NOT_PROCESSED_FITS_FILE.
 	*/
 	input::readXMLFile(input::params, filename, verbose); // parse parameters into [params]
 
@@ -120,8 +120,8 @@ bool input::processParametersFile(string filename, bool verbose) {
 
 bool input::readFITSFile(std::valarray<double> &data, std::vector<long> &dim, string filename, bool verbose) {
 	/*
-	  This function reads the data from a FITS file with a given file path [filename] into a valarray [data], 
-	  populating [dim] with the dimensions of the image.
+	This function reads the data from a FITS file with a given file path [filename] into a valarray [data], 
+	populating [dim] with the dimensions of the image.
 	*/
 	std::auto_ptr<FITS> pInfile;
 	try {
@@ -145,8 +145,8 @@ bool input::readFITSFile(std::valarray<double> &data, std::vector<long> &dim, st
 
 bool input::readXMLFile(xml_document<> &doc, string filename, bool verbose) {
 	/*
-	  This function reads an XML file with a given file path [filename], parsing it into rapidxml 
-	  xml_document [doc].
+	This function reads an XML file with a given file path [filename], parsing it into rapidxml 
+	xml_document [doc].
 	*/
 	FILE *f = fopen(filename.c_str(), "rb");
 	fseek(f, 0, SEEK_END);

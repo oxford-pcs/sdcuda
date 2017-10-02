@@ -1,3 +1,10 @@
+.gitattributes
+ClassDiagram.cd
+pad.txt
+sdcuda.opensdf
+vc120.pdb
+x64/
+
 # Prerequisites
 *.d
 
