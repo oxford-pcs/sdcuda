@@ -18,6 +18,7 @@ public:
 	long n_elements;
 	double wavelength;
 	virtual int crop(long, long, long, long) { return 0; };
+	virtual int grow(long, long, long, long) { return 0; };
 };
 
 class hspslice : public spslice {
@@ -34,6 +35,7 @@ public:
 	dspslice(dcube*, Complex*, rectangle, double);
 	~dspslice() {};
 	int crop(long, long, long, long);
+	int grow(long, long, long, long);
 };
 
 

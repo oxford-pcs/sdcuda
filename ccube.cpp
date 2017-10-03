@@ -162,7 +162,7 @@ std::valarray<double> hcube::getDataAsValarray(complex_part part) {
 	return data;
 }
 
-int hcube::rescale(float wavelength_to_rescale_to, rectangle& rect) {
+int hcube::rescale(float wavelength_to_rescale_to, rectangle& smallest_region) {
 	/*
 	Rescale slices of a device cube to the wavelength [wavelength_to_rescale_to]. A rectangle representing the 
 	slice with the smallest region [smallest_region] is populated.
@@ -174,16 +174,14 @@ int hcube::rescale(float wavelength_to_rescale_to, rectangle& rect) {
 		long x_new_size, y_new_size, x_start, y_start;
 		for (std::vector<hspslice>::iterator it = hcube::slices.begin(); it != hcube::slices.end(); it++) {
 			float scale_factor = wavelength_to_rescale_to / it->wavelength;
+			printf("%f\n", scale_factor);
 			x_new_size = round(it->region.x_size * scale_factor);
 			y_new_size = round(it->region.y_size * scale_factor);
 			x_start = round((it->region.x_size - x_new_size) / 2);
 			y_start = round((it->region.y_size - y_new_size) / 2);
 			it->crop(x_start, y_start, x_new_size, y_new_size);
 		}
-		hcube::dim[0] = NULL;
-		hcube::dim[1] = NULL;
-		hcube::n_elements = NULL;
-		rect = rectangle(x_start, y_start, x_new_size, y_new_size);
+		smallest_region = rectangle(x_start, y_start, x_new_size, y_new_size);
 	} else {
 		throw_error(CCUBE_FFT_BAD_DOMAIN);
 	}
@@ -272,6 +270,10 @@ dcube* dcube::copy() {
 int dcube::crop(std::vector<rectangle> crop_regions) {
 	/*
 	Crop each slice of a device cube by the corresponding indexed region in [crop_regions].
+
+	This operation is in itself "unsafe", in the sense that it is possible to make the cube inconsistent
+	by ending up with slices of differing sizes by using different sized regions, we therefore require
+	the user to explicitly state what the new dimensions should be.
 	*/
 	long x_start, y_start, x_size, y_size;
 	for (int i = 0; i < dcube::slices.size(); i++) {
@@ -321,10 +323,8 @@ int dcube::fft(bool inverse) {
 int dcube::rescale(float wavelength_to_rescale_to, rectangle &smallest_region) {
 	/*
 	Rescale slices of a device cube to the wavelength [wavelength_to_rescale_to]. A rectangle representing the 
-	slice with the smallest region [smallest_region] is populated.
-	
-	Note that this only makes sense when working on data in the frequency domain and so a CCUBE_FFT_BAD_DOMAIN 
-	error will be thrown if [domain] is SPATIAL.
+	slice with the smallest region [smallest_region] is populated. Note that this only makes sense when working 
+	on data in the frequency domain.
 	*/
 	if (dcube::domain == FREQUENCY) {
 		long x_new_size, y_new_size, x_start, y_start;
@@ -332,16 +332,12 @@ int dcube::rescale(float wavelength_to_rescale_to, rectangle &smallest_region) {
 			float scale_factor = wavelength_to_rescale_to / it->wavelength;
 			x_new_size = round(it->region.x_size * scale_factor);
 			y_new_size = round(it->region.y_size * scale_factor);
-			x_start = round((it->region.x_size - x_new_size) / 2);
-			y_start = round((it->region.y_size - y_new_size) / 2);
+			x_start = it->region.x_start + round((it->region.x_size - x_new_size) / 2);
+			y_start = it->region.y_start + round((it->region.y_size - y_new_size) / 2);
 			it->crop(x_start, y_start, x_new_size, y_new_size);
 		}
-		dcube::dim[0] = NULL;
-		dcube::dim[1] = NULL;
-		dcube::n_elements = NULL;
 		smallest_region = rectangle(x_start, y_start, x_new_size, y_new_size);
-	}
-	else {
+	} else {
 		throw_error(CCUBE_FFT_BAD_DOMAIN);
 	}
 	return 0;

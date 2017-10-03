@@ -13,6 +13,7 @@
 #include "ccomplex.cuh"
 #include "regions.h"
 #include "ckernels.h"
+#include "cspaxel.h"
 
 int main(int argc, char **argv) {
 
@@ -93,7 +94,7 @@ int main(int argc, char **argv) {
 		// [n_elements] and [dim] NULL temporarily.
 		//
 		rectangle rect;
-		d_datacube->rescale(input.wavelengths[0], rect);
+		d_datacube->rescale(d_datacube->wavelengths[0], rect);
 
 		// 7. (CUDA) ifftshift (out-of-place)
 		//
@@ -132,7 +133,7 @@ int main(int argc, char **argv) {
 		d_datacube->crop(crop_regions);
 		d_datacube->dim[0] = rect.x_size;
 		d_datacube->dim[1] = rect.y_size;
-		d_datacube->n_elements = d_datacube->dim[0] * d_datacube->dim[1] * h_datacube->dim[2];
+		d_datacube->n_elements = d_datacube->dim[0] * d_datacube->dim[1] * d_datacube->dim[2];
 
 		// 10. As the fft/ifft and shifting operations cause odd/even sampled images to be centrally offset by 
 		//     half a pixel in both x and y, so we need to interpolate the flux to align the images 
@@ -167,6 +168,15 @@ int main(int argc, char **argv) {
 		
 		// ***
 		// ** WORKING AREA
+		
+		/*std::vector<dspaxel> spaxels;
+		for (long jj = 0; jj < d_datacube->dim[1]; jj++) {
+			for (long jj = 0; jj < d_datacube->dim[1]; jj++) {
+				dspaxel spaxel = dspaxel(d_datacube, std::vector<long> {0, 0});
+				spaxels.push_back(spaxel);
+			}
+		}*/
+
 		d_datacube_tmp = d_datacube->copy();
 		culaStatus status;
 		culaInitialize();
@@ -179,6 +189,9 @@ int main(int argc, char **argv) {
 		culaShutdown();
 		delete d_datacube;
 		d_datacube = d_datacube_tmp;
+		
+		//for (std::vector<dspaxel>::iterator it = spaxels.begin(); it != spaxels.end(); it++) {
+		//}
 		// **
 
 		// 11. Move datacube back to host.

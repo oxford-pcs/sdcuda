@@ -85,6 +85,28 @@ Complex* hmemory::malloc(long size, bool zero_initialise) {
 	return data;
 }
 
+Complex* hmemory::realloc(Complex* old_data, long new_size, long old_size, bool zero_initialise_if_grow) {
+	/*
+	Reallocate a piece of memory of size [old_size] on the host of size [new_size].
+	*/
+	Complex* new_data = NULL;
+	cudaMallocHost((void**)&(new_data), new_size);
+	if (cudaGetLastError() != cudaSuccess) {
+		fprintf(stderr, "Cuda error: Failed to allocate\n");
+	}
+	if (new_size > old_size && zero_initialise_if_grow) {
+		memset(new_data, 0, new_size);
+		if (cudaGetLastError() != cudaSuccess) {
+			fprintf(stderr, "Cuda error: Failed to memset\n");
+		}
+	}
+	dmemory::memcpyhh(new_data, old_data, new_size);
+	free(old_data);
+
+	return new_data;
+}
+
+
 
 int dmemory::free(Complex* data) {
 	/*
@@ -115,4 +137,25 @@ Complex* dmemory::malloc(long size, bool zero_initialise) {
 		}
 	}
 	return data;
+}
+
+Complex* dmemory::realloc(Complex* old_data, long new_size, long old_size, bool zero_initialise_if_grow) {
+	/*
+	Reallocate a piece of memory of size [old_size] on the device of size [new_size].
+	*/
+	Complex* new_data = NULL;
+	cudaMalloc((void**)&(new_data), new_size);
+	if (cudaGetLastError() != cudaSuccess) {
+		fprintf(stderr, "Cuda error: Failed to allocate\n");
+	}
+	if (new_size > old_size && zero_initialise_if_grow) {
+		cudaMemset(new_data, 0, new_size);
+		if (cudaGetLastError() != cudaSuccess) {
+			fprintf(stderr, "Cuda error: Failed to memset\n");
+		}
+	}
+	dmemory::memcpydd(new_data, old_data, new_size);
+	free(old_data);
+
+	return new_data;
 }
