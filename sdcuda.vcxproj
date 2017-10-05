@@ -178,6 +178,8 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClInclude Include="config.h" />
     <ClInclude Include="cspaxel.h" />
     <ClInclude Include="cspslice.h" />
+    <ClInclude Include="cstates.h" />
+    <ClInclude Include="errors.h" />
     <ClInclude Include="getopt.h" />
     <ClInclude Include="rapidxml.hpp" />
     <ClInclude Include="rapidxml_iterators.hpp" />

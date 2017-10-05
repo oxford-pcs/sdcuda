@@ -20,10 +20,11 @@ enum complex_part {
 
 struct Complex {
 	double x, y;
-	operator double2() const {
-		double2 a{ x, y };
-		return a;
-	};
+	Complex() {} ;
+	Complex(double x, double y) {
+		Complex::x = x;
+		Complex::y = y;
+	}
 };
 
 __device__ __host__ Complex cAdd(Complex, Complex);

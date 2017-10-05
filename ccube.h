@@ -8,41 +8,30 @@
 #include "cspslice.h"
 #include "regions.h"
 #include "cmemory.h"
+#include "errors.h"
 
-enum domains {
+enum ccube_domains {
 	SPATIAL = 0,
 	FREQUENCY = 1
 };
 
-enum ccube_errors {
-	CCUBE_OK = 0,
-	CCUBE_FFT_BAD_DOMAIN = -1,
+enum ccube_states {
+	OK = 0,
+	INCONSISTENT = 1
 };
-
-inline void throw_error(int code) {
-	if (code < 0) {
-		fprintf(stderr, "\nccube: fatal error encountered with code: %d, exiting.\n", code);
-		exit(0);
-	} else {
-		fprintf(stderr, "\nccube: warning encountered with code: %d\n", code);
-	}
-}
 
 class cube {
 public:
 	cube() {};
 	~cube() {};
-	std::vector<long> dim;
-	domains domain;
-	long memsize;
-	long n_elements;
-	std::vector<double> wavelengths;
-	Complex *p_data = NULL;						// pointer to data block, not necessarily with contiguous data. always use member [slices]
+	ccube_domains domain;
+	ccube_states state = OK;	// this keeps track of whether the cube has consistently sized slices.
 protected:
-	virtual int clear() { return 0; };
-	virtual cube* copy() { return NULL; };
 	virtual int crop(std::vector<rectangle>) { return 0; };
-	int rescale(float, rectangle&) { return 0; };
+	virtual cube* deepcopy() { return NULL; };
+	virtual std::vector<long> get_dim() { return std::vector<long>(); };
+	int clear() { return 0; }
+	int rescale(float) { return 0; };
 };
 
 class dcube;
@@ -51,15 +40,15 @@ class hcube : public cube, public hmemory {
 public:
 	hcube() {};
 	hcube(std::valarray<double>, std::vector<long>, std::vector<double>);
-	hcube(std::valarray<Complex>, std::vector<long>, std::vector<double>, domains);
+	hcube(std::valarray<Complex>, std::vector<long>, std::vector<double>, ccube_domains);
 	hcube(dcube*);
 	~hcube();
-	hcube* copy();
-	std::vector<hspslice> slices;
-	std::valarray<double> getDataAsValarray(complex_part);
+	std::vector<hspslice*> slices;
 	int clear();
 	int crop(std::vector<rectangle>);
-	int rescale(float, rectangle&);
+	hcube* deepcopy();
+	std::valarray<double> getDataAsValarray(complex_part);
+	int rescale(float);
 	int write(complex_part, std::string, bool);
 };
 
@@ -67,13 +56,13 @@ class dcube : public cube, public dmemory {
 public:
 	dcube() {};
 	dcube(hcube*);
-	~dcube() {};
-	std::vector<dspslice> slices;
-	dcube* copy();
+	~dcube();
+	std::vector<dspslice*> slices;
 	int clear();
 	int crop(std::vector<rectangle>);
+	dcube* deepcopy();
 	int fft(bool);
-	int rescale(float, rectangle&);
+	int rescale(float);
 };
 
 

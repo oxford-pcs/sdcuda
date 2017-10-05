@@ -25,10 +25,10 @@ inline bool is_file_existing(const std::string& name) {
 	}
 }
 
-class cclparser {
+class clparser {
 public:
-	cclparser(int, char**);
-	~cclparser() {};
+	clparser(int, char**);
+	~clparser() {};
 	std::string in_FITS_filename = "";
 	std::string in_params_filename = "";
 	std::string out_FITS_filename = "";

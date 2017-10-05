@@ -91,5 +91,11 @@
     <ClInclude Include="cmemory.h">
       <Filter>Header</Filter>
     </ClInclude>
+    <ClInclude Include="errors.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="cstates.h">
+      <Filter>Header</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

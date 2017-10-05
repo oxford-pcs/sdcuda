@@ -33,10 +33,6 @@ hcube* input::makeCube(long n_exposure, bool verbose) {
 	*/
 	if (input::state == CINPUT_OK) {
 		try {
-			if (verbose) {
-				printf("\n");
-				printf("Making cube for exposure number: %d\n", n_exposure);
-			}
 
 			std::size_t start = n_exposure*(input::dim[0]*input::dim[1]);
 			std::size_t lengths[] = { input::dim[3], input::dim[0]*input::dim[1] };
@@ -63,10 +59,7 @@ bool input::processFITSFile(string filename, bool verbose) {
 	*/
 	input::readFITSFile(input::data, input::dim, filename, verbose);
 	if (verbose) {
-		printf("\n");
-		printf("FITS File Information\n");
-		printf("----------------\n\n");
-		printf("FITS file:\t\t%s\n\n", input::in_fits_filename.c_str());
+		printf("FITS file:\t\t\t%s\n", input::in_fits_filename.c_str());
 		printf("Dimension 1:\t\t\t%d\n", input::dim[0]);
 		printf("Dimension 2:\t\t\t%d\n", input::dim[1]);
 		printf("Number of exposures:\t\t%d\n", input::dim[2]);
@@ -74,7 +67,7 @@ bool input::processFITSFile(string filename, bool verbose) {
 	}
 
 	input::state = CINPUT_OK;
-	return true;
+	return 0;
 }
 
 bool input::processParametersFile(string filename, bool verbose) {
@@ -108,8 +101,7 @@ bool input::processParametersFile(string filename, bool verbose) {
 	}
 
 	if (verbose) {
-		printf("\n");
-		printf("Parameters file:\t%s\n\n", input::in_params_filename.c_str());
+		printf("Parameters file:\t\t%s\n", input::in_params_filename.c_str());
 		printf("Wavelength start (micron):\t%.2f\n", wmin);
 		printf("Wavelength end (micron):\t%.2f\n", wmax);
 		printf("Wavelength nbins:\t\t%d\n", wnum);

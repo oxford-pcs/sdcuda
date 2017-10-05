@@ -1,41 +1,58 @@
 #pragma once
 
 #include <vector>
+#include <valarray>
 
 #include "ccomplex.cuh"
 #include "regions.h"
-
-class cube;
-class dcube;
-class hcube;
+#include "cmemory.h"
 
 class spslice {
 public:
 	spslice() {};
 	~spslice() {};
-	Complex* p_data;
+	Complex* p_data = NULL;
 	rectangle region;
-	long n_elements;
+	long memsize;
 	double wavelength;
-	virtual int crop(long, long, long, long) { return 0; };
-	virtual int grow(long, long, long, long) { return 0; };
+	long2 getDimensions();
+	long getNumberOfElements();
+	virtual int clear() { return 0; };
+	virtual int crop(rectangle) { return 0; };
+	virtual int grow(rectangle) { return 0; };
 };
 
-class hspslice : public spslice {
+class hcube;
+class dspslice;
+
+class hspslice : public spslice, public hmemory {
 public:
 	hcube* datacube;
-	hspslice(hcube*, Complex*, rectangle, double);
-	~hspslice() {};
-	int crop(long, long, long, long);
+	hspslice() {};
+	hspslice(hcube*, std::valarray<double>, rectangle, double);
+	hspslice(hcube*, std::valarray<Complex>, rectangle, double);
+	hspslice(hcube*, dspslice*);
+	~hspslice();
+	int clear();
+	int crop(rectangle);
+	hspslice* deepcopy();
+	int grow(rectangle);
 };
 
-class dspslice : public spslice {
+class dcube;
+
+class dspslice : public spslice, public dmemory {
 public:
 	dcube* datacube;
-	dspslice(dcube*, Complex*, rectangle, double);
-	~dspslice() {};
-	int crop(long, long, long, long);
-	int grow(long, long, long, long);
+	dspslice() {};
+	dspslice(dcube*, std::valarray<double>, rectangle, double);
+	dspslice(dcube*, std::valarray<Complex>, rectangle, double);
+	dspslice(dcube*, hspslice*);
+	~dspslice();
+	int clear();
+	int crop(rectangle);
+	dspslice* deepcopy();
+	int grow(rectangle);
 };
 
 
