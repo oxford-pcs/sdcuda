@@ -148,8 +148,7 @@ __global__ void cConvolveKernelReal2D(Complex* a, Complex* b, long dim1, double*
 
 __global__ void cFftShift2D(Complex* a, Complex* b, long dim) {
 	/*
-	Perform an fftshift on a complex array [a] to yield [b]. This routine only handles even-sized arrays with 
-	equal dimensions of size [dim].
+	Perform an fftshift on a complex array [a] to yield [b]. This routine only handles arrays with dimensions of equal size [dim].
 	*/
 	const int numThreads = blockDim.x * gridDim.x;
 	const int threadID = blockIdx.x * blockDim.x + threadIdx.x;
@@ -192,8 +191,7 @@ __global__ void cFftShift2D(Complex* a, Complex* b, long dim) {
 
 __global__ void cIFftShift2D(Complex* a, Complex* b, long dim) {
 	/*
-	Perform an ifftshift on a complex array [a] to yield [b]. This routine only handles even-sized arrays with
-	equal dimensions of size [dim].
+	Perform an ifftshift on a complex array [a] to yield [b]. This routine only handles arrays with dimensions of equal size [dim].
 	*/
 	const int numThreads = blockDim.x * gridDim.x;
 	const int threadID = blockIdx.x * blockDim.x + threadIdx.x;

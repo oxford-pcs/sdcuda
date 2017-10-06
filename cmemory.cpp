@@ -94,18 +94,17 @@ Complex* hmemory::realloc(Complex* old_data, long new_size, long old_size, bool 
 	if (cudaGetLastError() != cudaSuccess) {
 		fprintf(stderr, "Cuda error: Failed to allocate\n");
 	}
-	if (new_size > old_size && zero_initialise_if_grow) {
-		memset(new_data, 0, new_size);
-		if (cudaGetLastError() != cudaSuccess) {
-			fprintf(stderr, "Cuda error: Failed to memset\n");
+	if (new_size > old_size) {
+		if (zero_initialise_if_grow) {
+			memset(new_data, 0, new_size);
 		}
+		hmemory::memcpyhh(new_data, old_data, old_size);
+	} else {
+		hmemory::memcpyhh(new_data, old_data, new_size);
 	}
-	dmemory::memcpyhh(new_data, old_data, new_size);
-	free(old_data);
-
+	hmemory::free(old_data);
 	return new_data;
 }
-
 
 
 int dmemory::free(Complex* data) {
@@ -148,14 +147,17 @@ Complex* dmemory::realloc(Complex* old_data, long new_size, long old_size, bool 
 	if (cudaGetLastError() != cudaSuccess) {
 		fprintf(stderr, "Cuda error: Failed to allocate\n");
 	}
-	if (new_size > old_size && zero_initialise_if_grow) {
-		cudaMemset(new_data, 0, new_size);
-		if (cudaGetLastError() != cudaSuccess) {
-			fprintf(stderr, "Cuda error: Failed to memset\n");
+	if (new_size > old_size) {
+		if (zero_initialise_if_grow) {
+			cudaMemset(new_data, 0, new_size);
+			if (cudaGetLastError() != cudaSuccess) {
+				fprintf(stderr, "Cuda error: Failed to memset\n");
+			}
 		}
+		dmemory::memcpydd(new_data, old_data, old_size);
+	} else {
+		dmemory::memcpydd(new_data, old_data, new_size);
 	}
-	dmemory::memcpydd(new_data, old_data, new_size);
-	free(old_data);
-
+	dmemory::free(old_data);
 	return new_data;
 }

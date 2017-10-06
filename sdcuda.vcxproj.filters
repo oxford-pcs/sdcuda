@@ -94,7 +94,7 @@
     <ClInclude Include="errors.h">
       <Filter>Header</Filter>
     </ClInclude>
-    <ClInclude Include="cstates.h">
+    <ClInclude Include="cprocess_monitor.h">
       <Filter>Header</Filter>
     </ClInclude>
   </ItemGroup>

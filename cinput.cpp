@@ -95,8 +95,8 @@ bool input::processParametersFile(string filename, bool verbose) {
 		}
 	}
 
-	float wavelength_increment = (wmax - wmin) / (double)wnum;
-	for (float w = wmin; w < wmax; w += wavelength_increment) {
+	float wavelength_increment = (wmax - wmin) / ((double)(wnum-1));
+	for (float w = wmin; w <= wmax + (wavelength_increment/2.); w += wavelength_increment) {		// need to make sure we get last wavelength
 		input::wavelengths.push_back(w);
 	}
 
