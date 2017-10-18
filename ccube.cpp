@@ -137,18 +137,35 @@ std::valarray<double> hcube::getDataAsValarray(complex_part part) {
 		for (int i = 0; i < (*it)->getNumberOfElements(); i++) {
 			if (part == REAL) {
 				data[i + data_offset] = (*it)->p_data[i].x;
-			}
-			else if (part == IMAGINARY) {
+			} else if (part == IMAGINARY) {
 				data[i + data_offset] = (*it)->p_data[i].y;
-			}
-			else if (part == AMPLITUDE) {
+			} else if (part == AMPLITUDE) {
 				data[i + data_offset] = cGetAmplitude((*it)->p_data[i]);
-			}
-			else if (part == PHASE) {
+			} else if (part == PHASE) {
 				data[i + data_offset] = cGetPhase((*it)->p_data[i]);
 			}
 		}
 		data_offset += (*it)->getNumberOfElements();
+	}
+	return data;
+}
+
+std::valarray<double> hcube::getDataAsValarray(complex_part part, int slice_index) {
+	/*
+	Get data from slice [slice_index] of host cube corresponding to complex part [part] as a valarray.
+	*/
+	long nelements = hcube::slices[slice_index]->region.x_size*hcube::slices[slice_index]->region.y_size;
+	std::valarray<double> data(nelements);
+	for (int i = 0; i < nelements; i++) {
+		if (part == REAL) {
+			data[i] = hcube::slices[slice_index]->p_data[i].x;
+		} else if (part == IMAGINARY) {
+			data[i] = hcube::slices[slice_index]->p_data[i].y;
+		} else if (part == AMPLITUDE) {
+			data[i] = cGetAmplitude(hcube::slices[slice_index]->p_data[i]);
+		} else if (part == PHASE) {
+			data[i] = cGetPhase(hcube::slices[slice_index]->p_data[i]);
+		}
 	}
 	return data;
 }
@@ -223,6 +240,34 @@ int hcube::write(complex_part part, string out_filename, bool clobber) {
 	} else if (hcube::state == INCONSISTENT) {
 		throw_error(CCUBE_FAIL_NO_INTEGRITY);
 	}
+	return 0;
+}
+
+int hcube::write(complex_part part, string out_filename, int slice_index, bool clobber) {
+	/*
+	Write hard copy of complex part [part] of slice [slice_index] from host datacube to file [out_filename].
+	*/
+	long naxis = 2;
+	long naxes[2] = { (*hcube::slices[slice_index]).getDimensions().x, (*hcube::slices[slice_index]).getDimensions().y };
+	long n_elements = naxes[0] * naxes[1];
+
+	std::auto_ptr<FITS> pFits(0);
+	try {
+		std::string fileName(out_filename);
+		if (clobber) {
+			fileName.insert(0, std::string("!"));
+		}
+		pFits.reset(new FITS(fileName, DOUBLE_IMG, naxis, naxes));
+	}
+	catch (FITS::CantCreate) {
+		throw_error(CCUBE_FAIL_WRITE);
+	}
+
+	pFits->addImage("DATA", DOUBLE_IMG, std::vector<long>({ naxes[0], naxes[1] }));
+
+	long fpixel(1);
+	pFits->pHDU().write(fpixel, n_elements, hcube::getDataAsValarray(part, slice_index));
+
 	return 0;
 }
 

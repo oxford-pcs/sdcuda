@@ -47,7 +47,7 @@ hcube* process(input* input, clparser* clparser, int slice_idx) {
 	// (CUDA) fft (in-place)
 	//
 	d_datacube->fft(false);
-	if (cudaThreadSynchronize() != cudaSuccess){
+	if (cudaThreadSynchronize() != cudaSuccess) {
 		fprintf(stderr, "Cuda error: Failed to synchronize\n");
 	}
 	pm.next();
@@ -56,7 +56,7 @@ hcube* process(input* input, clparser* clparser, int slice_idx) {
 	//
 	for (std::vector<dspslice*>::iterator it = d_datacube->slices.begin(); it != d_datacube->slices.end(); ++it) {
 		cScale2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >((*it)->p_data, (1. / ((*it)->getDimensions().x*(*it)->getDimensions().y)), (*it)->memsize / sizeof(Complex));
-		if (cudaThreadSynchronize() != cudaSuccess){
+		if (cudaThreadSynchronize() != cudaSuccess) {
 			fprintf(stderr, "Cuda error: Failed to synchronize\n");
 		}
 	}
@@ -70,22 +70,20 @@ hcube* process(input* input, clparser* clparser, int slice_idx) {
 		Complex* p_data_in = d_datacube->slices[i]->p_data;
 		Complex* p_data_out = d_datacube_tmp->slices[i]->p_data;
 		long x_size = d_datacube->slices[i]->region.x_size;
-		long y_size = d_datacube->slices[i]->region.y_size;
 		cFftShift2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(p_data_in, p_data_out, x_size);
-		if (cudaThreadSynchronize() != cudaSuccess){
+		if (cudaThreadSynchronize() != cudaSuccess) {
 			fprintf(stderr, "Cuda error: Failed to synchronize\n");
 		}
 	}
-
 	delete d_datacube;
 	d_datacube = d_datacube_tmp;
 	pm.next();
 
-	// Rescale the device datacube by trimming in frequency space
+	// Rescale the device datacube by rescaling in frequency space
 	//
 	d_datacube->rescale(d_datacube->slices[SLICE_RESCALE_INDEX]->wavelength);
 	pm.next();
-
+	
 	// (CUDA) ifftshift (out-of-place)
 	//
 	d_datacube_tmp = d_datacube->deepcopy();
@@ -94,10 +92,8 @@ hcube* process(input* input, clparser* clparser, int slice_idx) {
 		Complex* p_data_in = d_datacube->slices[i]->p_data;
 		Complex* p_data_out = d_datacube_tmp->slices[i]->p_data;
 		long x_size = d_datacube->slices[i]->region.x_size;
-		long y_size = d_datacube->slices[i]->region.y_size;
-		printf("%d\n", x_size);
 		cIFftShift2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(p_data_in, p_data_out, x_size);
-		if (cudaThreadSynchronize() != cudaSuccess){
+		if (cudaThreadSynchronize() != cudaSuccess) {
 			fprintf(stderr, "Cuda error: Failed to synchronize\n");
 		}
 	}
@@ -105,18 +101,13 @@ hcube* process(input* input, clparser* clparser, int slice_idx) {
 	d_datacube = d_datacube_tmp;
 	pm.next();
 
-	/*
-
-
 	// (CUDA) ifft (in-place)
 	//
 	d_datacube->fft(true);
-	if (cudaThreadSynchronize() != cudaSuccess){
+	if (cudaThreadSynchronize() != cudaSuccess) {
 		fprintf(stderr, "Cuda error: Failed to synchronize\n");
 	}
 	pm.next();
-
-	*/
 
 	// Crop cube in spatial domain to smallest dimension slice
 	//
@@ -127,16 +118,13 @@ hcube* process(input* input, clparser* clparser, int slice_idx) {
 	d_datacube->crop(d_datacube->getSmallestSliceRegion());
 	pm.next();
 
-	/*
-
 	// As the fft/ifft and shifting operations cause odd sampled images to be centrally offset from even ones by 
 	// half a pixel in both x and y, we need to "move" these to align them
 	//
-
 	// first we set the cube data to be amplitude only
 	for (std::vector<dspslice*>::iterator it = d_datacube->slices.begin(); it != d_datacube->slices.end(); ++it) {
 		cSetComplexRealAsAmplitude << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >((*it)->p_data, (*it)->memsize / sizeof(Complex));
-		if (cudaThreadSynchronize() != cudaSuccess){
+		if (cudaThreadSynchronize() != cudaSuccess) {
 			fprintf(stderr, "Cuda error: Failed to synchronize\n");
 		}
 	}
@@ -153,7 +141,7 @@ hcube* process(input* input, clparser* clparser, int slice_idx) {
 		long x_size = d_datacube->slices[i]->region.x_size;
 		long y_size = d_datacube->slices[i]->region.y_size;
 		cConvolveKernelReal2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(p_data_in, p_data_out, x_size, kernel->p_kcoeffs, kernel->ksize);
-		if (cudaThreadSynchronize() != cudaSuccess){
+		if (cudaThreadSynchronize() != cudaSuccess) {
 			fprintf(stderr, "Cuda error: Failed to synchronize\n");
 		}
 	}
@@ -161,8 +149,7 @@ hcube* process(input* input, clparser* clparser, int slice_idx) {
 	d_datacube = d_datacube_tmp;
 	delete kernel;
 	pm.next();
-
-	*/
+	
 
 	// Move datacube back to host and return
 	// 
@@ -222,7 +209,8 @@ int main(int argc, char **argv) {
 	}
 	// make sure last processes complete
 	for (std::vector<std::future<hcube*>>::iterator it = running_processes.begin(); it != running_processes.end(); it++) {
-		it->get()->write(AMPLITUDE, i_clparser->out_FITS_filename, true);		// FIXME: need to construct 4d cube!
+		hcube* h(it->get());
+		h->write(AMPLITUDE, i_clparser->out_FITS_filename, true);		// FIXME: need to construct 4d cube!
 	}
 
 	delete i_input;

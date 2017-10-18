@@ -14,7 +14,6 @@ enum ccube_domains {
 	SPATIAL = 0,
 	FREQUENCY = 1
 };
-
 enum ccube_states {
 	OK = 0,
 	INCONSISTENT = 1
@@ -30,13 +29,12 @@ protected:
 	virtual int crop(rectangle) { return 0; }
 	virtual int crop(std::vector<rectangle>) { return 0; };
 	virtual cube* deepcopy() { return NULL; };
-	virtual std::vector<long> get_dim() { return std::vector<long>(); };
 	virtual int clear() { return 0; }
+	virtual rectangle getSmallestSliceRegion() { return rectangle(); };
 	virtual int rescale(float) { return 0; };
 };
 
 class dcube;
-
 class hcube : public cube, public hmemory {
 public:
 	hcube() {};
@@ -50,9 +48,11 @@ public:
 	int crop(std::vector<rectangle>);
 	hcube* deepcopy();
 	std::valarray<double> getDataAsValarray(complex_part);
+	std::valarray<double> getDataAsValarray(complex_part, int);
 	rectangle getSmallestSliceRegion();
 	int rescale(float);
 	int write(complex_part, std::string, bool);
+	int write(complex_part, std::string, int, bool);
 };
 
 class dcube : public cube, public dmemory {
