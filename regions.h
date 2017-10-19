@@ -2,7 +2,7 @@
 
 #include <stdio.h>
 
-class rectangle {
+struct rectangle {
 public:
 	long x_start, y_start, x_size, y_size;
 	rectangle() {

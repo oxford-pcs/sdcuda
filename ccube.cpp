@@ -396,6 +396,7 @@ int dcube::rescale(float wavelength_to_rescale_to) {
 	if (dcube::domain == FREQUENCY) {
 		std::vector<long> region_size_x, region_size_y;
 		long x_new_size, y_new_size, x_start, y_start;
+		int TEST = 1;
 		for (std::vector<dspslice*>::iterator it = dcube::slices.begin(); it != dcube::slices.end(); ++it) {
 			float scale_factor = wavelength_to_rescale_to / (*it)->wavelength;
 			x_new_size = round((*it)->region.x_size * scale_factor);
@@ -407,7 +408,7 @@ int dcube::rescale(float wavelength_to_rescale_to) {
 				(*it)->crop(this_region);
 			} else if (this_region.x_size > (*it)->region.x_size)  {
 				(*it)->grow(this_region);
-			} 
+			}
 			region_size_x.push_back(this_region.x_size);
 			region_size_y.push_back(this_region.y_size);
 		}

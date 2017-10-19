@@ -166,21 +166,25 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <CudaCompile Include="ccomplex.cu">
       <FileType>Document</FileType>
     </CudaCompile>
-    <CudaCompile Include="deconvolve.cu" />
+    <CudaCompile Include="cudacalls.cu" />
+    <ClCompile Include="deconvolve.cpp">
+      <FileType>Document</FileType>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cclparser.h" />
     <ClCompile Include="ccomplex.cuh" />
     <ClInclude Include="ccube.h" />
+    <ClInclude Include="cudacalls.cuh" />
     <ClInclude Include="cinput.h" />
     <ClInclude Include="ckernels.h" />
     <ClInclude Include="cmemory.h" />
-    <ClInclude Include="config.h" />
     <ClInclude Include="cspaxel.h" />
     <ClInclude Include="cspslice.h" />
-    <ClInclude Include="cprocess_monitor.h" />
+    <ClInclude Include="cprocess.h" />
     <ClInclude Include="errors.h" />
     <ClInclude Include="getopt.h" />
+    <ClInclude Include="logger.h" />
     <ClInclude Include="rapidxml.hpp" />
     <ClInclude Include="rapidxml_iterators.hpp" />
     <ClInclude Include="rapidxml_print.hpp" />
@@ -193,9 +197,13 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClCompile Include="ckernels.cpp" />
     <ClCompile Include="cclparser.cpp" />
     <ClCompile Include="cmemory.cpp" />
+    <ClCompile Include="cprocess.cpp">
+      <FileType>CppCode</FileType>
+    </ClCompile>
     <ClCompile Include="cspaxel.cpp" />
     <ClCompile Include="cspslice.cpp" />
     <ClCompile Include="getopt.cpp" />
+    <ClCompile Include="logger.cpp" />
     <ClCompile Include="regions.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

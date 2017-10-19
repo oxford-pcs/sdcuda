@@ -211,17 +211,22 @@ dspslice* dspslice::deepcopy() {
 
 int dspslice::grow(rectangle new_region) {
 	/*
-	Grow a slice in device memory to the region [region], making the data contiguous within the slice.
+	Grow a slice in device memory to the region [region], making the data contiguous within the slice. A temporary
+	row is required as the data that is copied into the realloc'ed array needs to be erased after it's been moved to 
+	the correct position in the array, whilst avoiding zeroing data that's been moved.
 	*/
 	rectangle* old_region = &(dspslice::region);
 	long new_row_memsize = new_region.x_size*sizeof(Complex);
 	long new_memsize = new_row_memsize*new_region.y_size;
 	dspslice::p_data = dspslice::realloc(dspslice::p_data, new_memsize, dspslice::memsize, true);
+	Complex* row_data_tmp = dspslice::malloc(old_region->x_size*sizeof(Complex), true);
 	for (int row = old_region->y_size - 1; row >= 0; row--) {
+		dspslice::memcpydd(row_data_tmp, &dspslice::p_data[(row*old_region->x_size)], old_region->x_size*sizeof(Complex));
+		cudaMemset(&dspslice::p_data[(row*old_region->x_size)], 0, new_row_memsize);
 		dspslice::memcpydd(&dspslice::p_data[((row + (old_region->y_start - new_region.y_start))*new_region.x_size) +
-			(old_region->x_start - new_region.x_start)], &dspslice::p_data[(row*old_region->x_size)], old_region->x_size*sizeof(Complex));
-		cudaMemset(&dspslice::p_data[(row*old_region->x_size)], 0, new_row_memsize);	// zero reformatted row
+			(old_region->x_start - new_region.x_start)], row_data_tmp, old_region->x_size*sizeof(Complex));
 	}
+	dspslice::free(row_data_tmp);
 	dspslice::region = new_region;
 	dspslice::memsize = new_memsize;
 	return 0;

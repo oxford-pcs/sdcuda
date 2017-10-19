@@ -1,8 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <CudaCompile Include="deconvolve.cu" />
     <CudaCompile Include="ccomplex.cu">
+      <Filter>Source</Filter>
+    </CudaCompile>
+    <CudaCompile Include="cudacalls.cu">
       <Filter>Source</Filter>
     </CudaCompile>
   </ItemGroup>
@@ -47,6 +49,15 @@
     <ClCompile Include="cmemory.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="deconvolve.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="cprocess.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="logger.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ccube.h">
@@ -82,9 +93,6 @@
     <ClInclude Include="cclparser.h">
       <Filter>Header</Filter>
     </ClInclude>
-    <ClInclude Include="config.h">
-      <Filter>Header</Filter>
-    </ClInclude>
     <ClInclude Include="cspaxel.h">
       <Filter>Header</Filter>
     </ClInclude>
@@ -94,7 +102,13 @@
     <ClInclude Include="errors.h">
       <Filter>Header</Filter>
     </ClInclude>
-    <ClInclude Include="cprocess_monitor.h">
+    <ClInclude Include="cprocess.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="logger.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="cudacalls.cuh">
       <Filter>Header</Filter>
     </ClInclude>
   </ItemGroup>
