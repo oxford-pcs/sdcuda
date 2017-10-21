@@ -9,6 +9,7 @@
 #include "cufft.h"
 #include "rapidxml.hpp"
 
+#include "logger.h"
 #include "ccube.h"
 
 using namespace rapidxml;

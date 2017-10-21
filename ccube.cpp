@@ -5,7 +5,6 @@
 #include <vector>
 
 #include <CCfits>
-
 #include <cuda_runtime.h>
 #include <cufft.h>
 
@@ -351,7 +350,7 @@ int dcube::fft(bool inverse) {
 	/*
 	Perform a fast fourier transform on the device data in the direction specified by the [inverse] flag.
 	*/
-	int DIRECTION = inverse == true ? CUFFT_FORWARD : CUFFT_INVERSE;
+	int DIRECTION = (inverse == true) ? CUFFT_FORWARD : CUFFT_INVERSE;
 	for (std::vector<dspslice*>::iterator it = dcube::slices.begin(); it != dcube::slices.end(); ++it) {
 		cufftHandle plan;
 		if (cufftPlan2d(&plan, (*it)->region.x_size, (*it)->region.y_size, CUFFT_Z2Z) != CUFFT_SUCCESS) {
@@ -388,26 +387,23 @@ rectangle dcube::getSmallestSliceRegion() {
 	return regions[std::distance(std::begin(region_sizes), result)];
 }
 
-int dcube::rescale(float wavelength_to_rescale_to) {
+int dcube::rescale(std::vector<double> scale_factors) {
 	/*
-	Rescale slices of a device cube to the wavelength [wavelength_to_rescale_to]. Note that this only makes sense when
-	working on data in the frequency domain.
+	Rescale slices of a device cube by [factors]. Note that this only makes sense when working on data in the frequency domain.
 	*/
 	if (dcube::domain == FREQUENCY) {
 		std::vector<long> region_size_x, region_size_y;
 		long x_new_size, y_new_size, x_start, y_start;
-		int TEST = 1;
-		for (std::vector<dspslice*>::iterator it = dcube::slices.begin(); it != dcube::slices.end(); ++it) {
-			float scale_factor = wavelength_to_rescale_to / (*it)->wavelength;
-			x_new_size = round((*it)->region.x_size * scale_factor);
-			y_new_size = round((*it)->region.y_size * scale_factor);
-			x_start = (*it)->region.x_start + round(((*it)->region.x_size - x_new_size) / 2);
-			y_start = (*it)->region.y_start + round(((*it)->region.y_size - y_new_size) / 2);
+		for (int i = 0; i < dcube::slices.size(); i++) {
+			x_new_size = round(dcube::slices[i]->region.x_size * scale_factors[i]);
+			y_new_size = round(dcube::slices[i]->region.y_size * scale_factors[i]);
+			x_start = dcube::slices[i]->region.x_start + round((dcube::slices[i]->region.x_size - x_new_size) / 2);
+			y_start = dcube::slices[i]->region.y_start + round((dcube::slices[i]->region.y_size - y_new_size) / 2);
 			rectangle this_region = rectangle(x_start, y_start, x_new_size, y_new_size);
-			if (this_region.x_size < (*it)->region.x_size) {
-				(*it)->crop(this_region);
-			} else if (this_region.x_size > (*it)->region.x_size)  {
-				(*it)->grow(this_region);
+			if (this_region.x_size < dcube::slices[i]->region.x_size) {
+				dcube::slices[i]->crop(this_region);
+			} else if (this_region.x_size > dcube::slices[i]->region.x_size)  {
+				dcube::slices[i]->grow(this_region);
 			}
 			region_size_x.push_back(this_region.x_size);
 			region_size_y.push_back(this_region.y_size);

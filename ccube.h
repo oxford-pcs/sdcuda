@@ -67,7 +67,7 @@ public:
 	dcube* deepcopy();
 	int fft(bool);
 	rectangle getSmallestSliceRegion();
-	int rescale(float);
+	int rescale(std::vector<double>);
 };
 
 

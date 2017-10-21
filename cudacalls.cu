@@ -19,3 +19,7 @@ void cudaScale2D(Complex* data, double constant, long memsize) {
 void cudaSetComplexRealAsAmplitude(Complex* a, long size) {
 	cSetComplexRealAsAmplitude << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(a, size);
 }
+
+void cudaTranslate2D(Complex* a, double2 translation, long x_size) {
+	cTranslate2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(a, translation, x_size);
+}

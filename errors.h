@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "logger.h"
+
 inline void throw_error(int code) {
 	if (code < 0) {
 		fprintf(stderr, "\nFATAL:\tencountered error with code %d, exiting.\n", code);

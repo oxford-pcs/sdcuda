@@ -8,25 +8,24 @@
 #include "ccube.h"
 #include "ccomplex.cuh"
 #include "regions.h"
-#include "ckernels.h"
 #include "cspaxel.h"
 #include "cprocess.h"
-
 #include "logger.h"
+#include "banner.h"
 
 const int nCPUCORES = 4;
+
 std::list<process_stages> STAGES{
 	MAKE_DATACUBE_ON_HOST,
 	H_CROP_TO_EVEN_SQUARE,
 	COPY_HOST_DATACUBE_TO_DEVICE,
 	D_FFT,
-	D_NORMALISE,
 	D_FFTSHIFT,
 	D_RESCALE,
+	D_IRESCALE,
 	D_IFFTSHIFT,
 	D_IFFT,
 	D_SET_DATA_TO_AMPLITUDE,
-	D_CORRECT_OFFSET_ON_DEVICE,
 	D_CROP_TO_SMALLEST_DIMENSION,
 	COPY_DEVICE_DATACUBE_TO_HOST
 };
@@ -38,6 +37,8 @@ hcube* go(input* iinput, clparser* iclparser, int exp_idx) {
 }
 
 int main(int argc, char **argv) {
+	print_banner();
+
 	// Parse the command line input
 	//
 	clparser* iclparser = new clparser(argc, argv);
@@ -45,7 +46,6 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 
-	printf("\n");
 	// Process the input files parsed from the command line input
 	//
 	input* iinput = new input(iclparser->in_FITS_filename, iclparser->in_params_filename, true);
@@ -63,9 +63,11 @@ int main(int argc, char **argv) {
 				available_slots--;
 			}
 		}
-		broker_to_stdout("new slot(s) available");
+		char buf[100]; sprintf(buf, "%d new slot(s) available", available_slots);
+		broker_to_stdout(buf);
 		if (available_slots > 0) {
-			broker_to_stdout("assigning new process to slot");
+			char buf[100]; sprintf(buf, "assigning new process (%d) to slot", i);
+			broker_to_stdout(buf);
 			running_processes.push_back(std::async(go, iinput, iclparser, i));
 		} else {
 			broker_to_stdout("waiting for next available slot");
@@ -73,7 +75,7 @@ int main(int argc, char **argv) {
 			while (!slot_is_available) {
 				for (std::vector<std::future<hcube*>>::iterator it = running_processes.begin(); it != running_processes.end(); ++it) {
 					if (it->wait_for(std::chrono::milliseconds(1000)) == future_status::ready) {
-						broker_to_stdout("new slot(s) available");
+						broker_to_stdout("new slot available");
 						running_processes.erase(it);
 						slot_is_available = true;
 						break;

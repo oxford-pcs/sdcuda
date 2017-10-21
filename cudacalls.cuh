@@ -11,3 +11,4 @@ void cudaFftShift2D(Complex*, Complex*, long);
 void cudaIFftShift2D(Complex*, Complex*, long);
 void cudaScale2D(Complex*, double, long);
 void cudaSetComplexRealAsAmplitude(Complex*, long);
+void cudaTranslate2D(Complex*, double2, long);

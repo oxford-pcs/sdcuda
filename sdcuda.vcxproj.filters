@@ -25,9 +25,6 @@
     <ClCompile Include="cinput.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="ckernels.cpp">
-      <Filter>Source</Filter>
-    </ClCompile>
     <ClCompile Include="cspslice.cpp">
       <Filter>Source</Filter>
     </ClCompile>
@@ -64,9 +61,6 @@
       <Filter>Header</Filter>
     </ClInclude>
     <ClInclude Include="cinput.h">
-      <Filter>Header</Filter>
-    </ClInclude>
-    <ClInclude Include="ckernels.h">
       <Filter>Header</Filter>
     </ClInclude>
     <ClInclude Include="cspslice.h">
@@ -109,6 +103,9 @@
       <Filter>Header</Filter>
     </ClInclude>
     <ClInclude Include="cudacalls.cuh">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="banner.h">
       <Filter>Header</Filter>
     </ClInclude>
   </ItemGroup>

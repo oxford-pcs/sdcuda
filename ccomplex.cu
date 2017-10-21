@@ -1,11 +1,10 @@
 #include "ccomplex.cuh"
 
+#include <cuComplex.h>
 #include <math.h>
 #include <cuda_runtime.h>
 #include <cufft.h>
 #include <stdio.h>
-
-#include "ckernels.h"
 
 // DEVICE FUNCTIONS
 
@@ -18,6 +17,59 @@ __device__ __host__ Complex cAdd(Complex a, Complex b) {
 	c.y = a.y + b.y;
 	return c;
 }
+
+__device__ __host__ Complex cExp(Complex a) {
+	/*
+	Calculate the exponential complex number [a].
+
+	exp(a) = exp(x + iy) = exp(x) * exp (iy) = exp(x) * (cos(y) + i sin(y))
+	*/
+	Complex tmp1, tmp2;
+	tmp1.x = exp(a.x); tmp1.y = 0;
+	tmp2.x = cos(a.y); tmp2.y = sin(a.y);
+
+	Complex c;
+	c = cMultiply(tmp1, tmp2);
+	return c;
+
+}
+
+__device__ __host__ Complex cMultiply(Complex a, Complex b) {
+	/*
+	Multiply a complex number [a] by a complex number [b].
+	*/
+	double e, f, g, h, eg, fh, eh, fg, x, y;
+	e = a.x; f = a.y;
+	g = b.x; h = b.y;
+
+	eg = e * g; fh = f * h;
+	eh = e * h; fg = f * g;
+
+	x = eg - fh; y = eh + fg;
+
+	Complex c;
+	c.x = x;
+	c.y = y;
+	return c;
+}
+
+__device__ __host__ Complex cMultiply(Complex a, double s) {
+	Complex c;
+	c.x = a.x * s;
+	c.y = a.y * s;
+	return c;
+}
+
+__device__ __host__ Complex cSub(Complex a, Complex b) {
+	/*
+	Subtract a complex number [a] from a complex number [b].
+	*/
+	Complex c;
+	c.x = a.x - b.x;
+	c.y = a.y - b.y;
+	return c;
+}
+
 
 __device__ __host__ Complex cConvolveKernelReal(int i, Complex* a, long dim1, double* kernel, long kernel_size) {
 	/*
@@ -93,21 +145,14 @@ __device__ __host__ quadrant cGet2DQuadrantFrom1DIndex(long index, long dim1, lo
 	}
 }
 
-__device__ __host__ Complex cScale(Complex a, double s) {
-	Complex c;
-	c.x = a.x * s;
-	c.y = a.y * s;
-	return c;
-}
+__device__ __host__ Complex cTranslate(Complex a, long dim1, long dim2, long2 position, double2 translation) {
+	Complex b;
+	double x_e = (position.x * -translation.x) / dim1;
+	double y_e = (position.y * -translation.y) / dim2;
+	b.x = 0;
+	b.y = -2 * M_PI * (x_e + y_e);
 
-__device__ __host__ Complex cSub(Complex a, Complex b) {
-	/*
-	Subtract a complex number [a] from a complex number [b].
-	*/
-	Complex c;
-	c.x = a.x - b.x;
-	c.y = a.y - b.y;
-	return c;
+	return cMultiply(a, cExp(b));
 }
 
 // GLOBAL FUNCTIONS
@@ -241,7 +286,7 @@ __global__ void cScale2D(Complex *a, double scale, long size) {
 	// this is required as one thread may need to do multiple 
 	// computations, i.e. if numThreads < size
 	for (int i = threadID; i < size; i += numThreads) {
-		a[i] = cScale(a[i], scale);
+		a[i] = cMultiply(a[i], scale);
 	}
 }
 
@@ -274,3 +319,22 @@ __global__ void cSetComplexRealAsAmplitude(Complex *a, long size) {
 		a[i].y = 0;
 	}
 }
+
+__global__ void cTranslate2D(Complex *a, double2 translation, long dim) {
+	/*
+	Apply translation to complex array [a] by [translation] pointwise. This routine only handles arrays with dimensions of equal size [dim].
+	*/
+	const int numThreads = blockDim.x * gridDim.x;
+	const int threadID = blockIdx.x * blockDim.x + threadIdx.x;
+
+	long size = dim*dim;
+
+	// this is required as one thread may need to do multiple 
+	// computations, i.e. if numThreads < size
+	for (int i = threadID; i < size; i += numThreads) {
+		long2 position = cGet2DXYFrom1DIndex(i, dim);
+		a[i] = cTranslate(a[i], dim, dim, position, translation);
+	}
+}
+
+
