@@ -10,18 +10,11 @@ char* get_timestamp() {
 	return buf;
 }
 
-void broker_to_stdout(char* msg) {
-	fprintf(stdout, "%s\tBROKER\t%s\n", get_timestamp(), msg);
+void to_stdout(char* msg) {
+	fprintf(stdout, "%s\t%s\n", get_timestamp(), msg);
+
 }
 
-void broker_to_stderr(char* msg) {
-	fprintf(stderr, "%s\tBROKER\t\t%s\n", get_timestamp(), msg);
-}
-
-void process_to_stdout(char* msg, int pid) {
-	fprintf(stdout, "%s %d\tPROCESS\t%s\n", get_timestamp(), pid, msg);
-}
-
-void process_to_stderr(char* msg, int pid) {
-	fprintf(stderr, "%s %d\tPROCESS\t%s\n", get_timestamp(), pid, msg);
+void to_stderr(char* msg) {
+	fprintf(stderr, "%s\t%s\n", get_timestamp(), msg);
 }

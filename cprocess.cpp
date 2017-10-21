@@ -5,6 +5,7 @@
 #include "cclparser.h"
 #include "cudacalls.cuh"
 #include "logger.h"
+#include "errors.h"
 
 process::process(std::list<process_stages> istages, input* iinput, clparser* iclparser, int exp_idx) {
 	process::stages = istages;
@@ -16,8 +17,8 @@ process::process(std::list<process_stages> istages, input* iinput, clparser* icl
 }
 
 process::~process() {
-	delete h_datacube;
-	delete d_datacube;
+	delete process::h_datacube;
+	delete process::d_datacube;
 }
 
 void process::copyDeviceDatacubeToHost() {
@@ -45,12 +46,12 @@ void process::cropToSmallestDimensionOnDevice() {
 void process::fftOnDevice() {
 	process::d_datacube->fft(false);
 	if (cudaThreadSynchronize() != cudaSuccess) {
-		fprintf(stderr, "Cuda error: Failed to synchronize\n");
+		throw_error(CUDA_FAIL_SYNCHRONIZE);
 	}
 	for (std::vector<dspslice*>::iterator it = process::d_datacube->slices.begin(); it != process::d_datacube->slices.end(); ++it) {
 		cudaScale2D((*it)->p_data, (1. / ((*it)->getDimensions().x*(*it)->getDimensions().y)), (*it)->memsize / sizeof(Complex));
 		if (cudaThreadSynchronize() != cudaSuccess) {
-			fprintf(stderr, "Cuda error: Failed to synchronize\n");
+			throw_error(CUDA_FAIL_SYNCHRONIZE);
 		}
 	}
 }
@@ -64,7 +65,7 @@ void process::fftshiftOnDevice() {
 		long x_size = process::d_datacube->slices[i]->region.x_size;
 		cudaFftShift2D(p_data_in, p_data_out, x_size);
 		if (cudaThreadSynchronize() != cudaSuccess) {
-			fprintf(stderr, "Cuda error: Failed to synchronize\n");
+			throw_error(CUDA_FAIL_SYNCHRONIZE);
 		}
 	}
 	delete d_datacube;
@@ -74,7 +75,7 @@ void process::fftshiftOnDevice() {
 void process::iFftOnDevice() {
 	process::d_datacube->fft(true);
 	if (cudaThreadSynchronize() != cudaSuccess) {
-		fprintf(stderr, "Cuda error: Failed to synchronize\n");
+		throw_error(CUDA_FAIL_SYNCHRONIZE);
 	}
 }
 
@@ -87,7 +88,7 @@ void process::iFftshiftOnDevice() {
 		long x_size = process::d_datacube->slices[i]->region.x_size;
 		cudaIFftShift2D(p_data_in, p_data_out, x_size);
 		if (cudaThreadSynchronize() != cudaSuccess) {
-			fprintf(stderr, "Cuda error: Failed to synchronize\n");
+			throw_error(CUDA_FAIL_SYNCHRONIZE);
 		}
 	}
 	delete d_datacube;
@@ -114,12 +115,11 @@ void process::iRescaleByWavelengthOnDevice() {
 		long x_size = process::d_datacube->slices[i]->region.x_size;
 		cudaTranslate2D(process::d_datacube->slices[i]->p_data, offset, x_size);
 		if (cudaThreadSynchronize() != cudaSuccess) {
-			fprintf(stderr, "Cuda error: Failed to synchronize\n");
+			throw_error(CUDA_FAIL_SYNCHRONIZE);
 		}
 	}
 	process::d_datacube->rescale(scale_factors);
 }
-
 
 void process::makeDatacubeOnHost() {
 	process::h_datacube = process::iinput->makeCube(process::exp_idx, true);
@@ -146,7 +146,7 @@ void process::rescaleByWavelengthOnDevice() {
 		long x_size = process::d_datacube->slices[i]->region.x_size;
 		cudaTranslate2D(process::d_datacube->slices[i]->p_data, offset, x_size);
 		if (cudaThreadSynchronize() != cudaSuccess) {
-			fprintf(stderr, "Cuda error: Failed to synchronize\n");
+			throw_error(CUDA_FAIL_SYNCHRONIZE);
 		}
 	}
 }
@@ -155,7 +155,7 @@ void process::setDataToAmplitude() {
 	for (std::vector<dspslice*>::iterator it = process::d_datacube->slices.begin(); it != process::d_datacube->slices.end(); ++it) {
 		cudaSetComplexRealAsAmplitude((*it)->p_data, (*it)->memsize / sizeof(Complex));
 		if (cudaThreadSynchronize() != cudaSuccess) {
-			fprintf(stderr, "Cuda error: Failed to synchronize\n");
+			throw_error(CUDA_FAIL_SYNCHRONIZE);
 		}
 	}
 }
@@ -165,12 +165,13 @@ void process::run() {
 	Run a process.
 	*/
 	long nstages = process::stages.size();
-	char buf[100]; sprintf(buf, "starting new process with process id %d", process::exp_idx);
-	process_to_stdout(buf, process::exp_idx);
+	sprintf(process::message_buffer, "\tPROCESS\tstarting new process with process id %d", process::exp_idx);
+	to_stdout(process::message_buffer);
 	for (int s = 0; s < nstages; s++) {
 		process::step();
 	}
-	process_to_stdout("process complete", process::exp_idx);
+	sprintf(process::message_buffer, "\tPROCESS\tprocess %d complete", process::exp_idx);
+	to_stdout(process::message_buffer);
 }
 
 void process::step() {
@@ -180,55 +181,67 @@ void process::step() {
 	switch (process::stages.front()) {
 	case COPY_DEVICE_DATACUBE_TO_HOST:
 		process::copyDeviceDatacubeToHost();
-		process_to_stdout("copied device datacube to host", process::exp_idx);
+		sprintf(process::message_buffer, "%d\tPROCESS\tcopied device datacube to host", process::exp_idx);
+		to_stdout(process::message_buffer);
 		break;
 	case COPY_HOST_DATACUBE_TO_DEVICE:
 		process::copyHostDatacubeToDevice();
-		process_to_stdout("copied host datacube to device", process::exp_idx);
+		sprintf(process::message_buffer, "%d\tPROCESS\tcopied host datacube to device", process::exp_idx);
+		to_stdout(process::message_buffer);
 		break;
 	case D_CROP_TO_SMALLEST_DIMENSION:
 		process::cropToSmallestDimensionOnDevice();
-		process_to_stdout("cropped datacube to smallest dimension on device", process::exp_idx);
+		sprintf(process::message_buffer, "%d\tPROCESS\tcropped datacube to smallest dimension on device", process::exp_idx);
+		to_stdout(process::message_buffer);
 		break;
 	case D_FFT:
 		process::fftOnDevice();
-		process_to_stdout("ffted datacube on device", process::exp_idx);
+		sprintf(process::message_buffer, "%d\tPROCESS\tffted datacube on device", process::exp_idx);
+		to_stdout(process::message_buffer);
 		break;
 	case D_FFTSHIFT:
 		process::fftshiftOnDevice();
-		process_to_stdout("fftshifted datacube on device", process::exp_idx);
+		sprintf(process::message_buffer, "%d\tPROCESS\tfftshifted datacube on device", process::exp_idx);
+		to_stdout(process::message_buffer);
 		break;
 	case D_IFFT:
 		process::iFftOnDevice();
-		process_to_stdout("iffted datacube on device", process::exp_idx);
+		sprintf(process::message_buffer, "%d\tPROCESS\tiffted datacube on device", process::exp_idx);
+		to_stdout(process::message_buffer);
 		break;
 	case D_IFFTSHIFT:
 		process::iFftshiftOnDevice();
-		process_to_stdout("ifftshifted datacube on device", process::exp_idx);
+		sprintf(process::message_buffer, "%d\tPROCESS\tifftshifted datacube on device", process::exp_idx);
+		to_stdout(process::message_buffer);
 		break;
 	case D_IRESCALE:
 		process::iRescaleByWavelengthOnDevice();
-		process_to_stdout("inverse rescaled datacube by wavelength on device", process::exp_idx);
+		sprintf(process::message_buffer, "%d\tPROCESS\tinverse rescaled datacube by wavelength on device", process::exp_idx);
+		to_stdout(process::message_buffer);
 		break;
 	case D_RESCALE:
 		process::rescaleByWavelengthOnDevice();
-		process_to_stdout("scaled datacube by wavelength on device", process::exp_idx);
+		sprintf(process::message_buffer, "%d\tPROCESS\tscaled datacube by wavelength on device", process::exp_idx);
+		to_stdout(process::message_buffer);
 		break;
 	case D_SET_DATA_TO_AMPLITUDE:
 		process::setDataToAmplitude();
-		process_to_stdout("set datacube data to amplitude on device", process::exp_idx);
+		sprintf(process::message_buffer, "%d\tPROCESS\tset datacube data to amplitude on device", process::exp_idx);
+		to_stdout(process::message_buffer);
 		break;
 	case H_CROP_TO_EVEN_SQUARE:
 		process::cropToEvenSquareOnHost();
-		process_to_stdout("cropped datacube to even square on device", process::exp_idx);
+		sprintf(process::message_buffer, "%d\tPROCESS\tcropped datacube to even square on device", process::exp_idx);
+		to_stdout(process::message_buffer);
 		break;
 	case MAKE_DATACUBE_ON_HOST:
 		process::makeDatacubeOnHost();
-		process_to_stdout("made datacube on host", process::exp_idx);
+		sprintf(process::message_buffer, "%d\tPROCESS\tmade datacube on host", process::exp_idx);
+		to_stdout(process::message_buffer);
 		break;
 	default:
-		process_to_stderr("unrecognised step requested", process::exp_idx);
-		break;
+		sprintf(process::message_buffer, "%d\tPROCESS\tcopied host datacube to device", process::exp_idx);
+		throw_error(CPROCESS_UNKNOWN_STAGE);
 	}
 	process::stages.pop_front();
 }

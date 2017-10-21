@@ -17,6 +17,10 @@
     <Filter Include="Header">
       <UniqueIdentifier>{0ddcbaf9-8719-4829-8109-314a0b491a4c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource">
+      <UniqueIdentifier>{111a9307-ca48-42a1-ac2b-b6c286e05ec6}</UniqueIdentifier>
+      <Extensions>*.xml</Extensions>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ccube.cpp">
@@ -53,6 +57,9 @@
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="logger.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="errors.cpp">
       <Filter>Source</Filter>
     </ClCompile>
   </ItemGroup>
@@ -93,9 +100,6 @@
     <ClInclude Include="cmemory.h">
       <Filter>Header</Filter>
     </ClInclude>
-    <ClInclude Include="errors.h">
-      <Filter>Header</Filter>
-    </ClInclude>
     <ClInclude Include="cprocess.h">
       <Filter>Header</Filter>
     </ClInclude>
@@ -108,5 +112,17 @@
     <ClInclude Include="banner.h">
       <Filter>Header</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="errors.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="sdcuda.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Xml Include="config.xml">
+      <Filter>Resource</Filter>
+    </Xml>
   </ItemGroup>
 </Project>

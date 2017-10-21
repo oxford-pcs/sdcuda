@@ -5,6 +5,7 @@
 #include <string>
 #include <iostream>
 #include "getopt.h"
+#include "errors.h"
 
 clparser::clparser(int argc, char **argv) {
 	/*
@@ -19,37 +20,27 @@ clparser::clparser(int argc, char **argv) {
 
 bool clparser::check() {
 	/* 
-    This function checks if we have both the correct number of inputs and 
-    if the inputs are valid, e.g. if input files exist. On success, it will
-	set [state] to CCLPARSER_OK.
+    This function checks if we have both the correct number of inputs and if the inputs are valid, e.g. if input files exist.
 	*/
 	if (clparser::nargs != 3) {
-		fprintf(stderr, "Invalid number of parameters specified.");
-		clparser::state = CCLPARSER_FAULT_INVALID_NUMBER_OF_PARAMETERS;
-		return false;
+		throw_error(CCLPARSER_INVALID_NUMBER_OF_PARAMETERS);
 	} else if (!is_file_existing(clparser::in_FITS_filename)) {
-		fprintf(stderr, "Input FITS file does not exist.");
-		clparser::state = CCLPASRER_FAULT_INPUT_FITS_FILE_NO_EXIST;
-		return false;
+		throw_error(CCLPARSER_INPUT_FITS_FILE_NO_EXIST);
 	} else if (!is_file_existing(clparser::in_params_filename)) {
-		fprintf(stderr, "Input parameters file does not exist.");
-		clparser::state = CCLPARSER_FAULT_INPUT_PARAMETERS_FILE_NO_EXIST;
-		return false;
+		throw_error(CCLPARSER_INPUT_PARAMETERS_FILE_NO_EXIST);
 	} 
-	clparser::state = CCLPARSER_OK;
 	return true;
 }
 
 bool clparser::parse() {
 	/*
-	This function parses the command line input arguments. On success, it will 
-	set [state] to CCLPARSER_WARN_NOT_CHECKED.
+	This function parses the command line input arguments.
 	*/
 	int opterr = 0;
 	int c;
 	while ((c = getopt(clparser::argc, clparser::argv, "i:p:o:")) != -1)
 		switch (c)
-	{
+		{
 		case 'i':
 			in_FITS_filename = std::string(optarg);
 			nargs++;
@@ -64,22 +55,14 @@ bool clparser::parse() {
 			break;
 		case '?':
 			if (optopt == 'i' || optopt == 'p' || optopt == 'o') {
-				clparser::state = CCLPARSER_FAULT_MISSING_ARGUMENT;
-				fprintf(stderr, "Option -%c requires an argument.\n", optopt);
-				return false;
+				throw_error(CCLPARSER_OPTION_NO_ARGUMENT);
 			} else if (isprint(optopt)) {
-				fprintf(stderr, "Unknown option `-%c'.\n", optopt);
-				clparser::state = CCLPARSER_FAULT_UNKNOWN_OPTION;
-				return false;
+				throw_error(CCLPARSER_UNKNOWN_OPTION);
 			} else {
-				fprintf(stderr, "Unknown option character `\\x%x'.\n", optopt);
-				clparser::state = CCLPARSER_FAULT_UNKNOWN_CHARACTER;
-				return false;
+				throw_error(CCLPARSER_UNKNOWN_CHARACTER);
 			}
 		default:
-			clparser::state = CCLPARSER_FAULT_UNKNOWN_CONDITION;
-			return false;
-	}
-	clparser::state = CCLPARSER_NOT_CHECKED;
+			throw_error(CCLPARSER_UNKNOWN_CONDITION);
+		}
 	return true;
 }

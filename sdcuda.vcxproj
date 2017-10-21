@@ -190,6 +190,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClInclude Include="rapidxml_print.hpp" />
     <ClInclude Include="rapidxml_utils.hpp" />
     <ClInclude Include="regions.h" />
+    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ccube.cpp" />
@@ -201,9 +202,16 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     </ClCompile>
     <ClCompile Include="cspaxel.cpp" />
     <ClCompile Include="cspslice.cpp" />
+    <ClCompile Include="errors.cpp" />
     <ClCompile Include="getopt.cpp" />
     <ClCompile Include="logger.cpp" />
     <ClCompile Include="regions.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="sdcuda.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Xml Include="config.xml" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

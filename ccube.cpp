@@ -207,7 +207,7 @@ int hcube::rescale(float wavelength_to_rescale_to) {
 			hcube::state = INCONSISTENT;
 		}
 	} else {
-		throw_error(CCUBE_FAIL_BAD_DOMAIN);
+		throw_error(CCUBE_BAD_DOMAIN);
 	}
 	return 0;
 }
@@ -237,7 +237,7 @@ int hcube::write(complex_part part, string out_filename, bool clobber) {
 		long fpixel(1);
 		pFits->pHDU().write(fpixel, n_elements, hcube::getDataAsValarray(part));
 	} else if (hcube::state == INCONSISTENT) {
-		throw_error(CCUBE_FAIL_NO_INTEGRITY);
+		throw_error(CCUBE_FAIL_INTEGRITY_CHECK);
 	}
 	return 0;
 }
@@ -246,27 +246,26 @@ int hcube::write(complex_part part, string out_filename, int slice_index, bool c
 	/*
 	Write hard copy of complex part [part] of slice [slice_index] from host datacube to file [out_filename].
 	*/
-	long naxis = 2;
-	long naxes[2] = { (*hcube::slices[slice_index]).getDimensions().x, (*hcube::slices[slice_index]).getDimensions().y };
-	long n_elements = naxes[0] * naxes[1];
-
-	std::auto_ptr<FITS> pFits(0);
-	try {
-		std::string fileName(out_filename);
-		if (clobber) {
-			fileName.insert(0, std::string("!"));
+	if (hcube::state == OK) {
+		long naxis = 2;
+		long naxes[2] = { (*hcube::slices[slice_index]).getDimensions().x, (*hcube::slices[slice_index]).getDimensions().y };
+		long n_elements = naxes[0] * naxes[1];
+		std::auto_ptr<FITS> pFits(0);
+		try {
+			std::string fileName(out_filename);
+			if (clobber) {
+				fileName.insert(0, std::string("!"));
+			}
+			pFits.reset(new FITS(fileName, DOUBLE_IMG, naxis, naxes));
+		} catch (FITS::CantCreate) {
+			throw_error(CCUBE_FAIL_WRITE);
 		}
-		pFits.reset(new FITS(fileName, DOUBLE_IMG, naxis, naxes));
+
+		pFits->addImage("DATA", DOUBLE_IMG, std::vector<long>({ naxes[0], naxes[1] }));
+
+		long fpixel(1);
+		pFits->pHDU().write(fpixel, n_elements, hcube::getDataAsValarray(part, slice_index));
 	}
-	catch (FITS::CantCreate) {
-		throw_error(CCUBE_FAIL_WRITE);
-	}
-
-	pFits->addImage("DATA", DOUBLE_IMG, std::vector<long>({ naxes[0], naxes[1] }));
-
-	long fpixel(1);
-	pFits->pHDU().write(fpixel, n_elements, hcube::getDataAsValarray(part, slice_index));
-
 	return 0;
 }
 
@@ -417,7 +416,7 @@ int dcube::rescale(std::vector<double> scale_factors) {
 			dcube::state = INCONSISTENT;
 		}
 	} else {
-		throw_error(CCUBE_FAIL_BAD_DOMAIN);
+		throw_error(CCUBE_BAD_DOMAIN);
 	}
 	return 0;
 }

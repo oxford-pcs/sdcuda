@@ -15,7 +15,7 @@
 
 const int nCPUCORES = 4;
 
-std::list<process_stages> STAGES{
+std::list<process_stages> STAGES {
 	MAKE_DATACUBE_ON_HOST,
 	H_CROP_TO_EVEN_SQUARE,
 	COPY_HOST_DATACUBE_TO_DEVICE,
@@ -39,22 +39,14 @@ hcube* go(input* iinput, clparser* iclparser, int exp_idx) {
 int main(int argc, char **argv) {
 	print_banner();
 
-	// Parse the command line input
+	// Parse the command line input and process
 	//
 	clparser* iclparser = new clparser(argc, argv);
-	if (iclparser->state != CCLPARSER_OK) {
-		exit(EXIT_FAILURE);
-	}
-
-	// Process the input files parsed from the command line input
-	//
 	input* iinput = new input(iclparser->in_FITS_filename, iclparser->in_params_filename, true);
-	if (iinput->state != CINPUT_OK) {
-		exit(EXIT_FAILURE);
-	}
 	printf("\n");
 
-	broker_to_stdout("starting asynchronous process broker...");
+	char broker_message_buffer[255];
+	to_stdout("\tBROKER\tstarting asynchronous process broker...");
 	std::vector<std::future<hcube*>> running_processes;
 	for (int i = 0; i < iinput->dim[2]; i++) {
 		int available_slots = nCPUCORES;
@@ -63,19 +55,19 @@ int main(int argc, char **argv) {
 				available_slots--;
 			}
 		}
-		char buf[100]; sprintf(buf, "%d new slot(s) available", available_slots);
-		broker_to_stdout(buf);
+		sprintf(broker_message_buffer, "\tBROKER\t%d new slot(s) available", available_slots);
+		to_stdout(broker_message_buffer);
 		if (available_slots > 0) {
-			char buf[100]; sprintf(buf, "assigning new process (%d) to slot", i);
-			broker_to_stdout(buf);
+			sprintf(broker_message_buffer, "\tBROKER\tassigning new process (%d) to slot", i);
+			to_stdout(broker_message_buffer);
 			running_processes.push_back(std::async(go, iinput, iclparser, i));
 		} else {
-			broker_to_stdout("waiting for next available slot");
+			to_stdout("\tBROKER\twaiting for next available slot");
 			bool slot_is_available = false;
 			while (!slot_is_available) {
 				for (std::vector<std::future<hcube*>>::iterator it = running_processes.begin(); it != running_processes.end(); ++it) {
 					if (it->wait_for(std::chrono::milliseconds(1000)) == future_status::ready) {
-						broker_to_stdout("new slot available");
+						to_stdout("\tBROKER\tnew slot available");
 						running_processes.erase(it);
 						slot_is_available = true;
 						break;

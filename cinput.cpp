@@ -23,7 +23,7 @@ input::input(std::string in_fits_filename, std::string in_params_filename, bool 
 	*/
 	input::in_fits_filename = in_fits_filename;
 	input::in_params_filename = in_params_filename;
-	if (input::processParametersFile(in_params_filename, true)) {
+	if (input::processSimulationParametersFile(in_params_filename, true)) {
 		input::processFITSFile(in_fits_filename, true);
 	}
 }
@@ -32,31 +32,30 @@ hcube* input::makeCube(long n_exposure, bool verbose) {
 	/* 
 	This function constructs a host cube instance using the necessary class variables for the [n_exposure] exposure.
 	*/
-	if (input::state == CINPUT_OK) {
-		try {
+	try {
+		std::size_t start = n_exposure*(input::dim[0]*input::dim[1]);
+		std::size_t lengths[] = { input::dim[3], input::dim[0]*input::dim[1] };
+		std::size_t strides[] = { input::dim[0]*input::dim[1]*input::dim[2], 1 };
+		std::gslice exp_slice(start, std::valarray<std::size_t>(lengths, 2), std::valarray<std::size_t>(strides, 2));
 
-			std::size_t start = n_exposure*(input::dim[0]*input::dim[1]);
-			std::size_t lengths[] = { input::dim[3], input::dim[0]*input::dim[1] };
-			std::size_t strides[] = { input::dim[0]*input::dim[1]*input::dim[2], 1 };
-			std::gslice exp_slice(start, std::valarray<std::size_t>(lengths, 2), std::valarray<std::size_t>(strides, 2));
+		std::valarray<double> this_exposure_contents = input::data[exp_slice];
 
-			std::valarray<double> this_exposure_contents = input::data[exp_slice];
+		hcube* datacube = new hcube(this_exposure_contents, std::vector<long>({ input::dim[0], input::dim[1], input::dim[3] }), input::wavelengths);
 
-			hcube* datacube = new hcube(this_exposure_contents, std::vector<long>({ input::dim[0], input::dim[1], input::dim[3] }), input::wavelengths);
-
-			return datacube;
-		}
-		catch (FitsException&) {
-			input::state = CINPUT_FAULT_CONSTRUCT_CUBE;
-			return NULL;
-		}
+		return datacube;
+	} catch (FitsException&) {
+		throw_error(CINPUT_FAIL_CONSTRUCT_CUBE);
 	}
+}
+
+bool input::processConfigFile(string filename, bool verbose) {
+	input::readXMLFile(input::config, filename, verbose); // parse parameters into [params]
 }
 
 bool input::processFITSFile(string filename, bool verbose) {
 	/*
     This function takes a FITS file and processes it, reading the FITS file data and dimensions into the class variables 
-	[data] and [dim]. On success, it will set [state] to CINPUT_OK.
+	[data] and [dim].
 	*/
 	input::readFITSFile(input::data, input::dim, filename, verbose);
 	if (verbose) {
@@ -66,16 +65,13 @@ bool input::processFITSFile(string filename, bool verbose) {
 		printf("Number of exposures:\t\t%d\n", input::dim[2]);
 		printf("Number of spectral slices:\t%d\n", input::dim[3]);
 	}
-
-	input::state = CINPUT_OK;
-	return 0;
+	return true;
 }
 
-bool input::processParametersFile(string filename, bool verbose) {
+bool input::processSimulationParametersFile(string filename, bool verbose) {
 	/*
     This function takes an XML parameters file and processes it, creating a list of wavelengths for each slice of 
-	the cube and populating the class variable [wavelengths].  On success, it will set [state] to 
-	CINPUT_NOT_PROCESSED_FITS_FILE.
+	the cube and populating the class variable [wavelengths]. 
 	*/
 	input::readXMLFile(input::params, filename, verbose); // parse parameters into [params]
 
@@ -107,7 +103,6 @@ bool input::processParametersFile(string filename, bool verbose) {
 		printf("Wavelength end (micron):\t%.2f\n", wmax);
 		printf("Wavelength nbins:\t\t%d\n", wnum);
 	}
-	input::state = CINPUT_NOT_PROCESSED_FITS_FILE;
 	return true;
 }
 
@@ -121,8 +116,7 @@ bool input::readFITSFile(std::valarray<double> &data, std::vector<long> &dim, st
 		pInfile.reset(new FITS(filename, Read, true));
 	}
 	catch (FitsException&) {
-		input::state = CINPUT_FAULT_READ_FITS_ERROR;
-		return false;
+		throw_error(CINPUT_READ_FITS_ERROR);
 	}
 
 	PHDU &image = pInfile->pHDU();

@@ -35,6 +35,7 @@ public:
 	dcube* d_datacube;
 	int exp_idx;
 	std::list<process_stages> stages;
+	char message_buffer[255];
 private:
 	void copyDeviceDatacubeToHost();
 	void copyHostDatacubeToDevice();
