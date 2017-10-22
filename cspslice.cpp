@@ -65,28 +65,26 @@ hspslice::~hspslice() {
 	hspslice::free(p_data);
 }
 
-int hspslice::clear() {
+void hspslice::clear() {
 	/*
 	Clear data from host slice.
 	*/
 	memset(hspslice::p_data, 0, hspslice::memsize);
-	return 0;
 }
 
-int hspslice::crop(rectangle new_region) {
+void hspslice::crop(rectangle new_region) {
 	/*
 	Crop a slice in host memory to the region [region], making the data contiguous within the slice.
 	*/
 	rectangle* old_region = &(hspslice::region);
 	for (int row = 0; row < new_region.y_size; row++) {
-		hspslice::memcpydd(&p_data[(row*new_region.x_size)], &p_data[((row + (new_region.y_start - old_region->y_start))*old_region->x_size) +
+		dspslice::memcpyhh(&hspslice::p_data[(row*new_region.x_size)], &hspslice::p_data[((row + (new_region.y_start - old_region->y_start))*old_region->x_size) +
 			(new_region.x_start - old_region->x_start)], new_region.x_size*sizeof(Complex));
 	}
 	hspslice::region = new_region;
 	long new_memsize = new_region.x_size*new_region.y_size*sizeof(Complex);
 	hspslice::p_data = hspslice::realloc(hspslice::p_data, new_memsize, hspslice::memsize, false);
 	hspslice::memsize = new_memsize;
-	return 0;
 }
 
 hspslice* hspslice::deepcopy() {
@@ -103,22 +101,26 @@ hspslice* hspslice::deepcopy() {
 	return new_slice;
 }
 
-int hspslice::grow(rectangle region) {
+void hspslice::grow(rectangle new_region) {
 	/*
-	Grow a slice in host memory to the region [region], making the data contiguous within the slice.
+	Grow a slice in host memory to the region [region], making the data contiguous within the slice. A temporary
+	row is required as the data that is copied into the realloc'ed array needs to be erased after it's been moved to
+	the correct position in the array, whilst avoiding zeroing data that's been moved.
 	*/
-	long x_start = region.x_start;
-	long y_start = region.y_start;
-	long x_size = region.x_size;
-	long y_size = region.y_size;
-	long new_memsize = x_size*y_size*sizeof(Complex);
-	hspslice::p_data = hspslice::realloc(hspslice::p_data, new_memsize, hspslice::memsize, false);
-	for (int row = y_size - 1; row == 0; row--) {
-		hspslice::memcpyhh(&p_data[((row + y_start)*hspslice::region.x_size) + x_start], &p_data[(row*x_size)], x_size*sizeof(Complex));
+	rectangle* old_region = &(hspslice::region);
+	long new_row_memsize = new_region.x_size*sizeof(Complex);
+	long new_memsize = new_row_memsize*new_region.y_size;
+	hspslice::p_data = hspslice::realloc(hspslice::p_data, new_memsize, hspslice::memsize, true);
+	Complex* row_data_tmp = hspslice::malloc(old_region->x_size*sizeof(Complex), true);
+	for (int row = old_region->y_size - 1; row >= 0; row--) {
+		dspslice::memcpyhh(row_data_tmp, &hspslice::p_data[(row*old_region->x_size)], old_region->x_size*sizeof(Complex));
+		std::memset(&hspslice::p_data[(row*old_region->x_size)], 0, new_row_memsize);
+		dspslice::memcpyhh(&hspslice::p_data[((row + (old_region->y_start - new_region.y_start))*new_region.x_size) +
+			(old_region->x_start - new_region.x_start)], row_data_tmp, old_region->x_size*sizeof(Complex));
 	}
-	hspslice::region = rectangle(x_start, y_start, x_size, y_size);
+	hspslice::free(row_data_tmp);
+	hspslice::region = new_region;
 	hspslice::memsize = new_memsize;
-	return 0;
 }
 
 
@@ -168,7 +170,7 @@ dspslice::~dspslice() {
 	dspslice::free(p_data);
 }
 
-int dspslice::clear() {
+void dspslice::clear() {
 	/*
 	Clear data from device slice.
 	*/
@@ -176,10 +178,9 @@ int dspslice::clear() {
 	if (cudaGetLastError() != cudaSuccess) {
 		throw_error(CUDA_FAIL_SET_MEMORY_D);
 	}
-	return 0;
 }
 
-int dspslice::crop(rectangle new_region) {
+void dspslice::crop(rectangle new_region) {
 	/*
 	Crop a slice in device memory to the region [region], making the data contiguous within the slice.
 	*/
@@ -192,7 +193,6 @@ int dspslice::crop(rectangle new_region) {
 	long new_memsize = new_region.x_size*new_region.y_size*sizeof(Complex);
 	dspslice::p_data = dspslice::realloc(dspslice::p_data, new_memsize, dspslice::memsize, false);
 	dspslice::memsize = new_memsize;
-	return 0;
 }
 
 dspslice* dspslice::deepcopy() {
@@ -209,7 +209,7 @@ dspslice* dspslice::deepcopy() {
 	return new_slice;
 }
 
-int dspslice::grow(rectangle new_region) {
+void dspslice::grow(rectangle new_region) {
 	/*
 	Grow a slice in device memory to the region [region], making the data contiguous within the slice. A temporary
 	row is required as the data that is copied into the realloc'ed array needs to be erased after it's been moved to 
@@ -229,5 +229,4 @@ int dspslice::grow(rectangle new_region) {
 	dspslice::free(row_data_tmp);
 	dspslice::region = new_region;
 	dspslice::memsize = new_memsize;
-	return 0;
 }

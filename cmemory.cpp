@@ -9,7 +9,7 @@
 
 using std::valarray;
 
-int memory::memcpydd(Complex* dst, Complex* src, long size) {
+void memory::memcpydd(Complex* dst, Complex* src, long size) {
 	/*
 	Copy block of memory of size [size] from device location [src] to device location [dst].
 	*/
@@ -17,10 +17,9 @@ int memory::memcpydd(Complex* dst, Complex* src, long size) {
 	if (cudaGetLastError() != cudaSuccess) {
 		throw_error(CUDA_FAIL_MEMCPY_DD);
 	}
-	return 0;
 }
 
-int memory::memcpydh(Complex* dst, Complex* src, long size) {
+void memory::memcpydh(Complex* dst, Complex* src, long size) {
 	/*
 	Copy block of memory of size [size] from device location [src] to host location [dst].
 	*/
@@ -28,10 +27,9 @@ int memory::memcpydh(Complex* dst, Complex* src, long size) {
 	if (cudaGetLastError() != cudaSuccess) {
 		throw_error(CUDA_FAIL_MEMCPY_DH);
 	}
-	return 0;
 }
 
-int memory::memcpyhd(Complex* dst, Complex* src, long size) {
+void memory::memcpyhd(Complex* dst, Complex* src, long size) {
 	/*
 	Copy block of memory of size [size] from host location [src] to device location [dst].
 	*/
@@ -39,10 +37,9 @@ int memory::memcpyhd(Complex* dst, Complex* src, long size) {
 	if (cudaGetLastError() != cudaSuccess) {
 		throw_error(CUDA_FAIL_MEMCPY_HD);
 	}
-	return 0;
 }
 
-int memory::memcpyhh(Complex* dst, Complex* src, long size) {
+void memory::memcpyhh(Complex* dst, Complex* src, long size) {
 	/*
 	Copy block of memory of size [size] from host location [src] to host location [dst].
 	*/
@@ -50,11 +47,10 @@ int memory::memcpyhh(Complex* dst, Complex* src, long size) {
 	if (cudaGetLastError() != cudaSuccess) {
 		throw_error(CUDA_FAIL_MEMCPY_HH);
 	}
-	return 0;
 }
 
 
-int hmemory::free(Complex* data) {
+void hmemory::free(Complex* data) {
 	/*
 	Free host memory block.
 	*/
@@ -64,7 +60,6 @@ int hmemory::free(Complex* data) {
 			throw_error(CUDA_FAIL_FREE_MEMORY_H);
 		}
 	}
-	return 0;
 }
 
 Complex* hmemory::malloc(long size, bool zero_initialise) {
@@ -103,7 +98,7 @@ Complex* hmemory::realloc(Complex* old_data, long new_size, long old_size, bool 
 }
 
 
-int dmemory::free(Complex* data) {
+void dmemory::free(Complex* data) {
 	/*
 	Free device memory block.
 	*/
@@ -113,7 +108,6 @@ int dmemory::free(Complex* data) {
 			throw_error(CUDA_FAIL_FREE_MEMORY_D);
 		}
 	}
-	return 0;
 }
 
 Complex* dmemory::malloc(long size, bool zero_initialise) {

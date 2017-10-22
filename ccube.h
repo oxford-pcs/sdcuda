@@ -26,12 +26,12 @@ public:
 	ccube_domains domain;
 	ccube_states state = OK;	// this keeps track of whether the cube has consistently sized slices.
 protected:
-	virtual int crop(rectangle) { return 0; }
-	virtual int crop(std::vector<rectangle>) { return 0; };
+	virtual void crop(rectangle) {}
+	virtual void crop(std::vector<rectangle>) {};
 	virtual cube* deepcopy() { return NULL; };
-	virtual int clear() { return 0; }
+	virtual void clear() {}
 	virtual rectangle getSmallestSliceRegion() { return rectangle(); };
-	virtual int rescale(float) { return 0; };
+	virtual void rescale(float) {};
 };
 
 class dcube;
@@ -43,16 +43,16 @@ public:
 	hcube(dcube*);
 	~hcube();
 	std::vector<hspslice*> slices;
-	int clear();
-	int crop(rectangle);
-	int crop(std::vector<rectangle>);
+	void clear();
+	void crop(rectangle);
+	void crop(std::vector<rectangle>);
 	hcube* deepcopy();
 	std::valarray<double> getDataAsValarray(complex_part);
 	std::valarray<double> getDataAsValarray(complex_part, int);
 	rectangle getSmallestSliceRegion();
-	int rescale(float);
-	int write(complex_part, std::string, bool);
-	int write(complex_part, std::string, int, bool);
+	void rescale(std::vector<double>);
+	void write(complex_part, std::string, bool);
+	void write(complex_part, std::string, int, bool);
 };
 
 class dcube : public cube, public dmemory {
@@ -61,13 +61,13 @@ public:
 	dcube(hcube*);
 	~dcube();
 	std::vector<dspslice*> slices;
-	int clear();
-	int crop(rectangle);
-	int crop(std::vector<rectangle>);
+	void clear();
+	void crop(rectangle);
+	void crop(std::vector<rectangle>);
 	dcube* deepcopy();
-	int fft(bool);
+	void fft(bool);
 	rectangle getSmallestSliceRegion();
-	int rescale(std::vector<double>);
+	void rescale(std::vector<double>);
 };
 
 

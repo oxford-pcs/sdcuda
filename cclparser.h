@@ -24,6 +24,6 @@ public:
 private:
 	int argc;
 	char** argv;
-	bool check();
-	bool parse();
+	void check();
+	void parse();
 };

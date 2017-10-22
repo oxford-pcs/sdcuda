@@ -4,18 +4,23 @@
     <param value="4" name="nCPUCORES" description="number of CPU cores"/>
   </host>
   <device>
-    <param value="32" name="nCUDABLOCKS" description="number of CUDA blocks"/>
-    <param value="256" name="nCUDATHREADSPERBLOCK" description="number of threads per CUDA block"/>
+    <param value="64" name="nCUDABLOCKS" description="number of CUDA blocks"/>
+    <param value="512" name="nCUDATHREADSPERBLOCK" description="number of threads per CUDA block"/>
   </device>
   <process>
     <param value="2000" name="RESCALE_WAVELENGTH" description="wavelength to rescale to (nm)"/>
-    <param name="STAGES" description="process stage chain">
+    <param name="PROCCHAIN" description="process stage chain">
       <stage name="stage" value="MAKE_DATACUBE_ON_HOST"/>
       <stage name="stage" value="H_CROP_TO_EVEN_SQUARE"/>
       <stage name="stage" value="COPY_HOST_DATACUBE_TO_DEVICE"/>
       <stage name="stage" value="D_FFT"/>
       <stage name="stage" value="D_FFTSHIFT"/>
       <stage name="stage" value="D_RESCALE"/>
+      <stage name="stage" value="D_IFFTSHIFT"/>
+      <stage name="stage" value="D_IFFT"/>
+      <stage name="stage" value="D_FFT"/>
+      <stage name="stage" value="D_FFTSHIFT"/>
+      <stage name="stage" value="D_IRESCALE"/>
       <stage name="stage" value="D_IFFTSHIFT"/>
       <stage name="stage" value="D_IFFT"/>
       <stage name="stage" value="D_CROP_TO_SMALLEST_DIMENSION"/>

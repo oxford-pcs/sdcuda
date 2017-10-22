@@ -51,7 +51,7 @@ hcube* input::makeCube(long n_exposure, bool verbose) {
 	}
 }
 
-bool input::processConfigFile(string filename, bool verbose) {
+void input::processConfigFile(string filename, bool verbose) {
 	input::readXMLFile(input::config, filename, verbose); // parse parameters into [config]
 	xml_node<> *node;
 	//host
@@ -80,7 +80,7 @@ bool input::processConfigFile(string filename, bool verbose) {
 		for (xml_attribute<> *attr = node_process->first_attribute(); attr; attr = attr->next_attribute()) {
 			if (strcmp(attr->name(), "name") == 0 && strcmp(attr->value(), "RESCALE_WAVELENGTH") == 0) {
 				input::RESCALE_WAVELENGTH = atoi(node_process->first_attribute("value")->value());
-			} else if (strcmp(attr->name(), "name") == 0 && strcmp(attr->value(), "STAGES") == 0) {
+			} else if (strcmp(attr->name(), "name") == 0 && strcmp(attr->value(), "PROCCHAIN") == 0) {
 				for (xml_node<> *node_stages = node_process->first_node(); node_stages; node_stages = node_stages->next_sibling()) {
 					for (xml_attribute<> *attr = node_stages->first_attribute(); attr; attr = attr->next_attribute()) {
 						if (strcmp(attr->name(), "name") == 0 && strcmp(attr->value(), "stage") == 0) {
@@ -92,10 +92,9 @@ bool input::processConfigFile(string filename, bool verbose) {
 			}
 		}
 	}
-	return true;
 }
 
-bool input::processFITSFile(string filename, bool verbose) {
+void input::processFITSFile(string filename, bool verbose) {
 	/*
     This function takes a FITS file and processes it, reading the FITS file data and dimensions into the class variables 
 	[data] and [dim].
@@ -108,10 +107,9 @@ bool input::processFITSFile(string filename, bool verbose) {
 		printf("Number of exposures:\t\t%d\n", input::dim[2]);
 		printf("Number of spectral slices:\t%d\n", input::dim[3]);
 	}
-	return true;
 }
 
-bool input::processSimulationParametersFile(string filename, bool verbose) {
+void input::processSimulationParametersFile(string filename, bool verbose) {
 	/*
     This function takes an XML parameters file and processes it, creating a list of wavelengths for each slice of 
 	the cube and populating the class variable [wavelengths]. 
@@ -140,14 +138,13 @@ bool input::processSimulationParametersFile(string filename, bool verbose) {
 	}
 	if (verbose) {
 		printf("Parameters file:\t\t%s\n", input::in_params_filename.c_str());
-		printf("Wavelength start (micron):\t%.2f\n", wmin);
-		printf("Wavelength end (micron):\t%.2f\n", wmax);
+		printf("Wavelength start (nm):\t\t%d\n", wmin);
+		printf("Wavelength end (nm):\t\t%d\n", wmax);
 		printf("Wavelength nbins:\t\t%d\n", wnum);
 	}
-	return true;
 }
 
-bool input::readFITSFile(std::valarray<double> &data, std::vector<long> &dim, string filename, bool verbose) {
+void input::readFITSFile(std::valarray<double> &data, std::vector<long> &dim, string filename, bool verbose) {
 	/*
 	This function reads the data from a FITS file with a given file path [filename] into a valarray [data], 
 	populating [dim] with the dimensions of the image.
@@ -167,11 +164,9 @@ bool input::readFITSFile(std::valarray<double> &data, std::vector<long> &dim, st
 	input::dim.push_back(image.axis(3));	// spectral slices
 
     image.read(data, 1, std::accumulate(begin(dim), end(dim), 1, std::multiplies<long>()));
-
-	return true;
 }
 
-bool input::readXMLFile(xml_document<> &doc, string filename, bool verbose) {
+void input::readXMLFile(xml_document<> &doc, string filename, bool verbose) {
 	/*
 	This function reads an XML file with a given file path [filename], parsing it into rapidxml 
 	xml_document [doc].
@@ -188,6 +183,5 @@ bool input::readXMLFile(xml_document<> &doc, string filename, bool verbose) {
 	contents[fsize] = 0;
 
 	doc.parse<0>(contents);
-	return true;
 }
 

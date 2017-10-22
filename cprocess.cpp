@@ -12,6 +12,7 @@ process::process(input* iinput, int exp_idx) {
 	process::exp_idx = exp_idx;
 	process::h_datacube = NULL;
 	process::d_datacube = NULL;
+	process::stages = iinput->stages;
 }
 
 process::~process() {
@@ -98,6 +99,9 @@ void process::iRescaleOnDevice() {
 	std::vector<double> scale_factors;
 	for (int i = 0; i < process::d_datacube->slices.size(); i++) {
 		// can't use the reverse scale factor as the round function means that we wouldn't necessarily end up with the correct rescaled size
+		if (process::pre_rescale_regions.size() != process::d_datacube->slices.size()) {
+			throw_error(CPROCESS_IRESCALE_PRE_SIZES_NOT_SET);
+		}
 		scale_factors.push_back((double)process::pre_rescale_regions[i].x_size / (double)process::d_datacube->slices[i]->region.x_size);
 	}
 	// need to roll phase (spatial translation) for odd sized frames, otherwise there's a 0.5 pixel offset in x and y compared to the even frames after ifft.
@@ -168,7 +172,7 @@ void process::run() {
 	/*
 	Run a process.
 	*/
-	long nstages = process::iinput->stages.size();
+	long nstages = process::stages.size();
 	sprintf(process::message_buffer, "\tPROCESS\t\tstarting new process with process id %d", process::exp_idx);
 	to_stdout(process::message_buffer);
 	for (int s = 0; s < nstages; s++) {
@@ -182,7 +186,7 @@ void process::step(int stage, int nstages) {
 	/* 
 	Step through process chain by one stage.
 	*/
-	switch (process::iinput->stages.front()) {
+	switch (process::stages.front()) {
 	case COPY_DEVICE_DATACUBE_TO_HOST:
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tcopying device datacube to host", process::exp_idx, stage, nstages);
 		process::copyDeviceDatacubeToHost();
@@ -247,5 +251,5 @@ void process::step(int stage, int nstages) {
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tcopied host datacube to device", process::exp_idx, stage, nstages);
 		throw_error(CPROCESS_UNKNOWN_STAGE);
 	}
-	process::iinput->stages.pop_front();
+	process::stages.pop_front();
 }

@@ -17,9 +17,9 @@ public:
 	int wavelength;			// nm
 	long2 getDimensions();
 	long getNumberOfElements();
-	virtual int clear() { return 0; };
-	virtual int crop(rectangle) { return 0; };
-	virtual int grow(rectangle) { return 0; };
+	virtual void clear() {};
+	virtual void crop(rectangle) {};
+	virtual void grow(rectangle) {};
 };
 
 class hcube;
@@ -33,10 +33,10 @@ public:
 	hspslice(hcube*, std::valarray<Complex>, rectangle, int);
 	hspslice(hcube*, dspslice*);
 	~hspslice();
-	int clear();
-	int crop(rectangle);
+	void clear();
+	void crop(rectangle);
 	hspslice* deepcopy();
-	int grow(rectangle);
+	void grow(rectangle);
 };
 
 class dcube;
@@ -49,10 +49,10 @@ public:
 	dspslice(dcube*, std::valarray<Complex>, rectangle, int);
 	dspslice(dcube*, hspslice*);
 	~dspslice();
-	int clear();
-	int crop(rectangle);
+	void clear();
+	void crop(rectangle);
 	dspslice* deepcopy();
-	int grow(rectangle);
+	void grow(rectangle);
 };
 
 

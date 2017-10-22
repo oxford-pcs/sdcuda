@@ -65,17 +65,16 @@ hcube::~hcube() {
 	}
 }
 
-int hcube::clear() {
+void hcube::clear() {
 	/*
-	Clear data from all slices in host cube.
+	Clear data from all slices in a host cube.
 	*/
 	for (std::vector<hspslice*>::iterator it = hcube::slices.begin(); it != hcube::slices.end(); ++it) {
 		(*it)->clear();
 	}
-	return 0;
 }
 
-int hcube::crop(rectangle region) {
+void hcube::crop(rectangle region) {
 	/*
 	Crop all slices of a host cube by the region [region].
 	*/
@@ -83,10 +82,9 @@ int hcube::crop(rectangle region) {
 		(*it)->crop(region);
 	}
 	hcube::state = OK;
-	return 0;
 }
 
-int hcube::crop(std::vector<rectangle> regions) {
+void hcube::crop(std::vector<rectangle> regions) {
 	/*
 	Crop each slice of a host cube by the corresponding region in vector [regions].
 	*/
@@ -104,7 +102,6 @@ int hcube::crop(std::vector<rectangle> regions) {
 	} else {
 		hcube::state = INCONSISTENT;
 	}
-	return 0;
 }
 
 hcube* hcube::deepcopy() {
@@ -180,25 +177,29 @@ rectangle hcube::getSmallestSliceRegion() {
 	return regions[std::distance(std::begin(region_sizes), result)];
 }
 
-int hcube::rescale(float wavelength_to_rescale_to) {
+void hcube::rescale(std::vector<double> scale_factors) {
 	/*
-	Rescale slices of a host cube to the wavelength [wavelength_to_rescale_to]. Note that this only makes sense when 
-	working on data in the frequency domain.
+	Rescale slices of a host cube by [scale_factors]. Note that this only makes sense when working on data
+	in the frequency domain.
 	*/
 	if (hcube::domain == FREQUENCY) {
 		std::vector<long> region_size_x, region_size_y;
 		long x_new_size, y_new_size, x_start, y_start;
-		for (std::vector<hspslice*>::iterator it = hcube::slices.begin(); it != hcube::slices.end(); ++it) {
-			double scale_factor = wavelength_to_rescale_to / (double)(*it)->wavelength;
-			x_new_size = round((*it)->region.x_size * scale_factor);
-			y_new_size = round((*it)->region.y_size * scale_factor);
-			x_start = (*it)->region.x_start + round(((*it)->region.x_size - x_new_size) / 2);
-			y_start = (*it)->region.y_start + round(((*it)->region.y_size - y_new_size) / 2);
+		for (int i = 0; i < hcube::slices.size(); i++) {
+			x_new_size = round((double)hcube::slices[i]->region.x_size * scale_factors[i]);
+			y_new_size = round((double)hcube::slices[i]->region.y_size * scale_factors[i]);
+			x_start = hcube::slices[i]->region.x_start + round((hcube::slices[i]->region.x_size - x_new_size) / 2);
+			y_start = hcube::slices[i]->region.y_start + round((hcube::slices[i]->region.y_size - y_new_size) / 2);
 			rectangle this_region = rectangle(x_start, y_start, x_new_size, y_new_size);
-			(*it)->crop(this_region);
+			if (this_region.x_size < hcube::slices[i]->region.x_size) {
+				hcube::slices[i]->crop(this_region);
+			} else if (this_region.x_size > hcube::slices[i]->region.x_size)  {
+				hcube::slices[i]->grow(this_region);
+			}
 			region_size_x.push_back(this_region.x_size);
 			region_size_y.push_back(this_region.y_size);
 		}
+
 		// check cube integrity (unless all wavelengths are equal, this should fail!)
 		if (std::equal(region_size_x.begin() + 1, region_size_x.end(), region_size_x.begin()) &&
 			std::equal(region_size_y.begin() + 1, region_size_y.end(), region_size_y.begin())) {
@@ -209,10 +210,9 @@ int hcube::rescale(float wavelength_to_rescale_to) {
 	} else {
 		throw_error(CCUBE_BAD_DOMAIN);
 	}
-	return 0;
 }
 
-int hcube::write(complex_part part, string out_filename, bool clobber) {
+void hcube::write(complex_part part, string out_filename, bool clobber) {
 	/*
 	Write hard copy of complex part [part] of host datacube to file [out_filename].
 	*/
@@ -239,10 +239,9 @@ int hcube::write(complex_part part, string out_filename, bool clobber) {
 	} else if (hcube::state == INCONSISTENT) {
 		throw_error(CCUBE_FAIL_INTEGRITY_CHECK);
 	}
-	return 0;
 }
 
-int hcube::write(complex_part part, string out_filename, int slice_index, bool clobber) {
+void hcube::write(complex_part part, string out_filename, int slice_index, bool clobber) {
 	/*
 	Write hard copy of complex part [part] of slice [slice_index] from host datacube to file [out_filename].
 	*/
@@ -266,7 +265,6 @@ int hcube::write(complex_part part, string out_filename, int slice_index, bool c
 		long fpixel(1);
 		pFits->pHDU().write(fpixel, n_elements, hcube::getDataAsValarray(part, slice_index));
 	}
-	return 0;
 }
 
 
@@ -289,17 +287,16 @@ dcube::~dcube() {
 	}
 }
 
-int dcube::clear() {
+void dcube::clear() {
 	/*
 	Clear data from all slices in device cube.
 	*/
 	for (std::vector<dspslice*>::iterator it = dcube::slices.begin(); it != dcube::slices.end(); ++it) {
 		(*it)->clear();
 	}
-	return 0;
 }
 
-int dcube::crop(rectangle region) {
+void dcube::crop(rectangle region) {
 	/*
 	Crop all slices of a device cube by the region [region].
 	*/
@@ -307,10 +304,9 @@ int dcube::crop(rectangle region) {
 		(*it)->crop(region);
 	}
 	dcube::state = OK;
-	return 0;
 }
 
-int dcube::crop(std::vector<rectangle> regions) {
+void dcube::crop(std::vector<rectangle> regions) {
 	/*
 	Crop each slice of a device cube by the corresponding region in vector [regions].
 	*/
@@ -328,7 +324,6 @@ int dcube::crop(std::vector<rectangle> regions) {
 	} else {
 		dcube::state = INCONSISTENT;
 	}
-	return 0;
 }
 
 dcube* dcube::deepcopy() {
@@ -345,7 +340,7 @@ dcube* dcube::deepcopy() {
 	return new_datacube;
 }
 
-int dcube::fft(bool inverse) {
+void dcube::fft(bool inverse) {
 	/*
 	Perform a fast fourier transform on the device data in the direction specified by the [inverse] flag.
 	*/
@@ -372,7 +367,6 @@ int dcube::fft(bool inverse) {
 		dcube::domain = SPATIAL;
 		break;
 	}
-	return 0;
 }
 
 rectangle dcube::getSmallestSliceRegion() {
@@ -386,7 +380,7 @@ rectangle dcube::getSmallestSliceRegion() {
 	return regions[std::distance(std::begin(region_sizes), result)];
 }
 
-int dcube::rescale(std::vector<double> scale_factors) {
+void dcube::rescale(std::vector<double> scale_factors) {
 	/*
 	Rescale slices of a device cube by [scale_factors]. Note that this only makes sense when working on data 
 	in the frequency domain.
@@ -419,7 +413,6 @@ int dcube::rescale(std::vector<double> scale_factors) {
 	} else {
 		throw_error(CCUBE_BAD_DOMAIN);
 	}
-	return 0;
 }
 
 

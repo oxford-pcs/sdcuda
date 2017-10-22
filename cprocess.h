@@ -35,6 +35,7 @@ public:
 	int exp_idx;
 	char message_buffer[255];
 	std::vector<rectangle> pre_rescale_regions;
+	std::list<process_stages> stages;
 private:
 	void copyDeviceDatacubeToHost();
 	void copyHostDatacubeToDevice();

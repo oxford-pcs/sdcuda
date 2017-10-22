@@ -13,12 +13,11 @@ clparser::clparser(int argc, char **argv) {
 	*/
 	clparser::argc = argc;
 	clparser::argv = argv;
-	if (clparser::parse()) {
-		clparser::check();
-	}
+	clparser::parse();
+	clparser::check();
 }
 
-bool clparser::check() {
+void clparser::check() {
 	/* 
     This function checks if we have both the correct number of inputs and if the inputs are valid, e.g. if input files exist.
 	*/
@@ -31,10 +30,9 @@ bool clparser::check() {
 	} else if (!is_file_existing(clparser::in_config_filename)) {
 		throw_error(CCLPARSER_INPUT_CONFIG_FILE_NO_EXIST);
 	}
-	return true;
 }
 
-bool clparser::parse() {
+void clparser::parse() {
 	/*
 	This function parses the command line input arguments.
 	*/
@@ -70,5 +68,4 @@ bool clparser::parse() {
 		default:
 			throw_error(CCLPARSER_UNKNOWN_CONDITION);
 		}
-	return true;
 }

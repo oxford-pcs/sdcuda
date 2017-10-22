@@ -42,9 +42,9 @@ public:
 	int RESCALE_WAVELENGTH;					// nm
 	std::list<process_stages> stages;
 private:
-	bool readXMLFile(xml_document<>&, string, bool);
-	bool readFITSFile(std::valarray<double>&, std::vector<long>&, string, bool);
-	bool processConfigFile(string, bool);
-	bool processSimulationParametersFile(string, bool);
-	bool processFITSFile(string, bool);
+	void readXMLFile(xml_document<>&, string, bool);
+	void readFITSFile(std::valarray<double>&, std::vector<long>&, string, bool);
+	void processConfigFile(string, bool);
+	void processSimulationParametersFile(string, bool);
+	void processFITSFile(string, bool);
 };
