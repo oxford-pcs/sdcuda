@@ -8,7 +8,7 @@
     <param value="256" name="nCUDATHREADSPERBLOCK" description="number of threads per CUDA block"/>
   </device>
   <process>
-    <param value="2450" name="RESCALE_WAVELENGTH" description="wavelength to rescale to (nm)"/>
+    <param value="2000" name="RESCALE_WAVELENGTH" description="wavelength to rescale to (nm)"/>
     <param name="STAGES" description="process stage chain">
       <stage name="stage" value="MAKE_DATACUBE_ON_HOST"/>
       <stage name="stage" value="H_CROP_TO_EVEN_SQUARE"/>
@@ -16,7 +16,6 @@
       <stage name="stage" value="D_FFT"/>
       <stage name="stage" value="D_FFTSHIFT"/>
       <stage name="stage" value="D_RESCALE"/>
-      <stage name="stage" value="D_IRESCALE"/>
       <stage name="stage" value="D_IFFTSHIFT"/>
       <stage name="stage" value="D_IFFT"/>
       <stage name="stage" value="D_CROP_TO_SMALLEST_DIMENSION"/>

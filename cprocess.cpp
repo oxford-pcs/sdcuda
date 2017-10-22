@@ -94,10 +94,11 @@ void process::iFftshiftOnDevice() {
 	process::d_datacube = d_datacube_tmp;
 }
 
-void process::iRescaleByWavelengthOnDevice() {
+void process::iRescaleOnDevice() {
 	std::vector<double> scale_factors;
-	for (std::vector<dspslice*>::iterator it = process::d_datacube->slices.begin(); it != process::d_datacube->slices.end(); ++it) {
-		scale_factors.push_back((double)(*it)->wavelength / (double)process::iinput->RESCALE_WAVELENGTH);
+	for (int i = 0; i < process::d_datacube->slices.size(); i++) {
+		// can't use the reverse scale factor as the round function means that we wouldn't necessarily end up with the correct rescaled size
+		scale_factors.push_back((double)process::pre_rescale_regions[i].x_size / (double)process::d_datacube->slices[i]->region.x_size);
 	}
 	// need to roll phase (spatial translation) for odd sized frames, otherwise there's a 0.5 pixel offset in x and y compared to the even frames after ifft.
 	for (int i = 0; i < process::d_datacube->slices.size(); i++) {
@@ -125,9 +126,10 @@ void process::makeDatacubeOnHost() {
 	process::h_datacube = process::iinput->makeCube(process::exp_idx, true);
 }
 
-void process::rescaleByWavelengthOnDevice() {
+void process::rescaleOnDevice() {
 	std::vector<double> scale_factors;
 	for (std::vector<dspslice*>::iterator it = process::d_datacube->slices.begin(); it != process::d_datacube->slices.end(); ++it) {
+		process::pre_rescale_regions.push_back((*it)->region);
 		scale_factors.push_back((double)process::iinput->RESCALE_WAVELENGTH / (double)(*it)->wavelength);
 	}
 	process::d_datacube->rescale(scale_factors);
@@ -167,83 +169,82 @@ void process::run() {
 	Run a process.
 	*/
 	long nstages = process::iinput->stages.size();
-	sprintf(process::message_buffer, "\tPROCESS\tstarting new process with process id %d", process::exp_idx);
+	sprintf(process::message_buffer, "\tPROCESS\t\tstarting new process with process id %d", process::exp_idx);
 	to_stdout(process::message_buffer);
 	for (int s = 0; s < nstages; s++) {
-		process::step();
+		process::step(s+1, nstages);
 	}
-	sprintf(process::message_buffer, "\tPROCESS\tprocess %d complete", process::exp_idx);
+	sprintf(process::message_buffer, "\tPROCESS\t\tprocess %d complete", process::exp_idx);
 	to_stdout(process::message_buffer);
 }
 
-void process::step() {
+void process::step(int stage, int nstages) {
 	/* 
 	Step through process chain by one stage.
 	*/
-	printf("%d\n", process::iinput->stages.front());
 	switch (process::iinput->stages.front()) {
 	case COPY_DEVICE_DATACUBE_TO_HOST:
-		sprintf(process::message_buffer, "%d\tPROCESS\tcopying device datacube to host", process::exp_idx);
+		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tcopying device datacube to host", process::exp_idx, stage, nstages);
 		process::copyDeviceDatacubeToHost();
 		to_stdout(process::message_buffer);
 		break;
 	case COPY_HOST_DATACUBE_TO_DEVICE:
-		sprintf(process::message_buffer, "%d\tPROCESS\tcopying host datacube to device", process::exp_idx);
+		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tcopying host datacube to device", process::exp_idx, stage, nstages);
 		process::copyHostDatacubeToDevice();
 		to_stdout(process::message_buffer);
 		break;
 	case D_CROP_TO_SMALLEST_DIMENSION:
-		sprintf(process::message_buffer, "%d\tPROCESS\tcropping datacube to smallest dimension on device", process::exp_idx);
+		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tcropping datacube to smallest dimension on device", process::exp_idx, stage, nstages);
 		process::cropToSmallestDimensionOnDevice();
 		to_stdout(process::message_buffer);
 		break;
 	case D_FFT:
-		sprintf(process::message_buffer, "%d\tPROCESS\tffting datacube on device", process::exp_idx);
+		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tffting datacube on device", process::exp_idx, stage, nstages);
 		process::fftOnDevice();
 		to_stdout(process::message_buffer);
 		break;
 	case D_FFTSHIFT:
-		sprintf(process::message_buffer, "%d\tPROCESS\tfftshifting datacube on device", process::exp_idx);
+		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tfftshifting datacube on device", process::exp_idx, stage, nstages);
 		process::fftshiftOnDevice();
 		to_stdout(process::message_buffer);
 		break;
 	case D_IFFT:
-		sprintf(process::message_buffer, "%d\tPROCESS\tiffting datacube on device", process::exp_idx);
+		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tiffting datacube on device", process::exp_idx, stage, nstages);
 		process::iFftOnDevice();
 		to_stdout(process::message_buffer);
 		break;
 	case D_IFFTSHIFT:
-		sprintf(process::message_buffer, "%d\tPROCESS\tifftshifting datacube on device", process::exp_idx);
+		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tifftshifting datacube on device", process::exp_idx, stage, nstages);
 		process::iFftshiftOnDevice();
 		to_stdout(process::message_buffer);
 		break;
 	case D_IRESCALE:
-		sprintf(process::message_buffer, "%d\tPROCESS\tinverse rescaling datacube by wavelength on device", process::exp_idx);
-		process::iRescaleByWavelengthOnDevice();
+		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tinverse rescaling datacube on device", process::exp_idx, stage, nstages);
+		process::iRescaleOnDevice();
 		to_stdout(process::message_buffer);
 		break;
 	case D_RESCALE:
-		sprintf(process::message_buffer, "%d\tPROCESS\tscaling datacube by wavelength on device", process::exp_idx);
-		process::rescaleByWavelengthOnDevice();
+		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tscaling datacube on device", process::exp_idx, stage, nstages);
+		process::rescaleOnDevice();
 		to_stdout(process::message_buffer);
 		break;
-	case D_SET_DATA_TO_AMPLITUDE:
-		sprintf(process::message_buffer, "%d\tPROCESS\tsetting datacube data to amplitude on device", process::exp_idx);
+	case D_SET_DATA_TO_AMPLITUDE: 
+		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tsetting datacube data to amplitude on device", process::exp_idx, stage, nstages);
 		process::setDataToAmplitude();
 		to_stdout(process::message_buffer);
 		break;
 	case H_CROP_TO_EVEN_SQUARE:
-		sprintf(process::message_buffer, "%d\tPROCESS\tcropping datacube to even square on device", process::exp_idx);
+		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tcropping datacube to even square on device", process::exp_idx, stage, nstages);
 		process::cropToEvenSquareOnHost();
 		to_stdout(process::message_buffer);
 		break;
 	case MAKE_DATACUBE_ON_HOST:
-		sprintf(process::message_buffer, "%d\tPROCESS\tmaking datacube on host", process::exp_idx);
+		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tmaking datacube on host", process::exp_idx, stage, nstages);
 		process::makeDatacubeOnHost();
 		to_stdout(process::message_buffer);
 		break;
 	default:
-		sprintf(process::message_buffer, "%d\tPROCESS\tcopied host datacube to device", process::exp_idx);
+		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tcopied host datacube to device", process::exp_idx, stage, nstages);
 		throw_error(CPROCESS_UNKNOWN_STAGE);
 	}
 	process::iinput->stages.pop_front();

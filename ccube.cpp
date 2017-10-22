@@ -388,14 +388,15 @@ rectangle dcube::getSmallestSliceRegion() {
 
 int dcube::rescale(std::vector<double> scale_factors) {
 	/*
-	Rescale slices of a device cube by [factors]. Note that this only makes sense when working on data in the frequency domain.
+	Rescale slices of a device cube by [scale_factors]. Note that this only makes sense when working on data 
+	in the frequency domain.
 	*/
 	if (dcube::domain == FREQUENCY) {
 		std::vector<long> region_size_x, region_size_y;
 		long x_new_size, y_new_size, x_start, y_start;
 		for (int i = 0; i < dcube::slices.size(); i++) {
-			x_new_size = round(dcube::slices[i]->region.x_size * scale_factors[i]);
-			y_new_size = round(dcube::slices[i]->region.y_size * scale_factors[i]);
+			x_new_size = round((double)dcube::slices[i]->region.x_size * scale_factors[i]);
+			y_new_size = round((double)dcube::slices[i]->region.y_size * scale_factors[i]);
 			x_start = dcube::slices[i]->region.x_start + round((dcube::slices[i]->region.x_size - x_new_size) / 2);
 			y_start = dcube::slices[i]->region.y_start + round((dcube::slices[i]->region.y_size - y_new_size) / 2);
 			rectangle this_region = rectangle(x_start, y_start, x_new_size, y_new_size);

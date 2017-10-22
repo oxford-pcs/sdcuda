@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
 	printf("\n");
 
 	char broker_message_buffer[255];
-	to_stdout("\tBROKER\tstarting asynchronous process broker...");
+	to_stdout("\tBROKER\t\tstarting asynchronous process broker...");
 	std::vector<std::future<hcube*>> running_processes;
 	for (int i = 0; i < iinput->dim[2]; i++) {
 		int available_slots = iinput->nCPUCORES;
@@ -38,19 +38,19 @@ int main(int argc, char **argv) {
 				available_slots--;
 			}
 		}
-		sprintf(broker_message_buffer, "\tBROKER\t%d new slot(s) available", available_slots);
+		sprintf(broker_message_buffer, "\tBROKER\t\t%d new slot(s) available", available_slots);
 		to_stdout(broker_message_buffer);
 		if (available_slots > 0) {
-			sprintf(broker_message_buffer, "\tBROKER\tassigning new process (%d) to slot", i);
+			sprintf(broker_message_buffer, "\tBROKER\t\tassigning new process (%d) to slot", i);
 			to_stdout(broker_message_buffer);
 			running_processes.push_back(std::async(go, iinput, i));
 		} else {
-			to_stdout("\tBROKER\twaiting for next available slot");
+			to_stdout("\tBROKER\t\twaiting for next available slot");
 			bool slot_is_available = false;
 			while (!slot_is_available) {
 				for (std::vector<std::future<hcube*>>::iterator it = running_processes.begin(); it != running_processes.end(); ++it) {
 					if (it->wait_for(std::chrono::milliseconds(1000)) == future_status::ready) {
-						to_stdout("\tBROKER\tnew slot available");
+						to_stdout("\tBROKER\t\tnew slot available");
 						running_processes.erase(it);
 						slot_is_available = true;
 						break;

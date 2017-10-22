@@ -29,12 +29,12 @@ public:
 	process(input*, int);
 	~process();
 	void run();
-	void step();
 	input* iinput;
 	hcube* h_datacube;
 	dcube* d_datacube;
 	int exp_idx;
 	char message_buffer[255];
+	std::vector<rectangle> pre_rescale_regions;
 private:
 	void copyDeviceDatacubeToHost();
 	void copyHostDatacubeToDevice();
@@ -45,9 +45,10 @@ private:
 	void fftshiftOnDevice();
 	void iFftOnDevice();
 	void iFftshiftOnDevice();
-	void iRescaleByWavelengthOnDevice();
+	void iRescaleOnDevice();
 	void makeDatacubeOnHost();
 	void normaliseOnDevice();
-	void rescaleByWavelengthOnDevice();
+	void rescaleOnDevice();
 	void setDataToAmplitude();
+	void step(int, int);
 };
