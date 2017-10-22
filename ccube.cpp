@@ -16,7 +16,7 @@
 using namespace CCfits;
 using std::valarray;
 
-hcube::hcube(std::valarray<double> data, std::vector<long> dim, std::vector<double> wavelengths) {
+hcube::hcube(std::valarray<double> data, std::vector<long> dim, std::vector<int> wavelengths) {
 	/*
 	Construct a cube in host memory using a double valarray [data] with dimensions [dim] and 
 	wavelengths [wavelengths].
@@ -31,7 +31,7 @@ hcube::hcube(std::valarray<double> data, std::vector<long> dim, std::vector<doub
 	}
 }
 
-hcube::hcube(std::valarray<Complex> data, std::vector<long> dim, std::vector<double> wavelengths, ccube_domains domain) {
+hcube::hcube(std::valarray<Complex> data, std::vector<long> dim, std::vector<int> wavelengths, ccube_domains domain) {
 	/*
 	Construct a cube in host memory using a double valarray [data] of domain [domain] with dimensions [dim] and
 	wavelengths [wavelengths].
@@ -189,7 +189,7 @@ int hcube::rescale(float wavelength_to_rescale_to) {
 		std::vector<long> region_size_x, region_size_y;
 		long x_new_size, y_new_size, x_start, y_start;
 		for (std::vector<hspslice*>::iterator it = hcube::slices.begin(); it != hcube::slices.end(); ++it) {
-			float scale_factor = wavelength_to_rescale_to / (*it)->wavelength;
+			double scale_factor = wavelength_to_rescale_to / (double)(*it)->wavelength;
 			x_new_size = round((*it)->region.x_size * scale_factor);
 			y_new_size = round((*it)->region.y_size * scale_factor);
 			x_start = (*it)->region.x_start + round(((*it)->region.x_size - x_new_size) / 2);
@@ -353,14 +353,14 @@ int dcube::fft(bool inverse) {
 	for (std::vector<dspslice*>::iterator it = dcube::slices.begin(); it != dcube::slices.end(); ++it) {
 		cufftHandle plan;
 		if (cufftPlan2d(&plan, (*it)->region.x_size, (*it)->region.y_size, CUFFT_Z2Z) != CUFFT_SUCCESS) {
-			fprintf(stderr, "CUFFT Error: Unable to create plan\n");
+			throw_error(CUDA_FFT_FAIL_CREATE_PLAN);
 		}
 		if (cufftExecZ2Z(plan, reinterpret_cast<cufftDoubleComplex*>((*it)->p_data),
 			reinterpret_cast<cufftDoubleComplex*>((*it)->p_data), DIRECTION) != CUFFT_SUCCESS) {
-			fprintf(stderr, "CUFFT Error: Unable to execute plan\n");
+			throw_error(CUDA_FFT_FAIL_EXECUTE_PLAN);
 		}
 		if (cudaThreadSynchronize() != cudaSuccess){
-			fprintf(stderr, "Cuda error: Failed to synchronize\n");
+			throw_error(CUDA_FAIL_SYNCHRONIZE);
 		}
 		cufftDestroy(plan);
 	}

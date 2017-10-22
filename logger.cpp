@@ -12,7 +12,6 @@ char* get_timestamp() {
 
 void to_stdout(char* msg) {
 	fprintf(stdout, "%s\t%s\n", get_timestamp(), msg);
-
 }
 
 void to_stderr(char* msg) {

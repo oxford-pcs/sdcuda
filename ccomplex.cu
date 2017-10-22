@@ -71,22 +71,6 @@ __device__ __host__ Complex cSub(Complex a, Complex b) {
 }
 
 
-__device__ __host__ Complex cConvolveKernelReal(int i, Complex* a, long dim1, double* kernel, long kernel_size) {
-	/*
-	Convolve the real component of array [a] with kernel [kernel].
-	*/
-	long kernel_half_size = (kernel_size - 1) / 2;
-	Complex new_value;
-	new_value.x = 0;
-	new_value.y = 0;
-	for (int kj = 0; kj < kernel_size; kj++) {
-		for (int ki = 0; ki < kernel_size; ki++) {
-			new_value.x += a[i + ((ki - kernel_half_size) + (kj - kernel_half_size)*dim1)].x * kernel[(kj*kernel_size) + ki];
-		}
-	}
-	return new_value;
-}
-
 __device__ __host__ double cGetAmplitude(Complex a) {
 	/*
 	Get the amplitude of the complex number [a].
@@ -168,26 +152,6 @@ __global__ void cAdd2D(Complex* a, Complex* b, long size) {
 	// computations, i.e. if numThreads < size
 	for (int i = threadID; i < size; i += numThreads) {
 		a[i] = cAdd(a[i], b[i]);
-	}
-}
-
-__global__ void cConvolveKernelReal2D(Complex* a, Complex* b, long dim1, double* kernel, long kernel_size) {
-	/*
-	Convolve kernel [kernel] of dimension [kernel_size] with complex array [a] of x dimension [dim1] and store 
-	the result in [b].
-	*/
-	const int numThreads = blockDim.x * gridDim.x;
-	const int threadID = blockIdx.x * blockDim.x + threadIdx.x;
-
-	long size = dim1*dim1;
-	// this is required as one thread may need to do multiple 
-	// computations, i.e. if numThreads < size
-	for (int i = threadID; i < size; i += numThreads) {
-		long2 xy = cGet2DXYFrom1DIndex(i, dim1);
-		long kernel_half_size = (kernel_size - 1) / 2;
-		if (xy.x >= kernel_half_size && xy.x < dim1 - kernel_half_size && xy.y >= kernel_half_size && xy.y < dim1 - kernel_half_size) {
-			b[i] = cConvolveKernelReal(i, a, dim1, kernel, kernel_size);
-		}
 	}
 }
 

@@ -13,25 +13,8 @@
 #include "logger.h"
 #include "banner.h"
 
-const int nCPUCORES = 4;
-
-std::list<process_stages> STAGES {
-	MAKE_DATACUBE_ON_HOST,
-	H_CROP_TO_EVEN_SQUARE,
-	COPY_HOST_DATACUBE_TO_DEVICE,
-	D_FFT,
-	D_FFTSHIFT,
-	D_RESCALE,
-	D_IRESCALE,
-	D_IFFTSHIFT,
-	D_IFFT,
-	D_SET_DATA_TO_AMPLITUDE,
-	D_CROP_TO_SMALLEST_DIMENSION,
-	COPY_DEVICE_DATACUBE_TO_HOST
-};
-
-hcube* go(input* iinput, clparser* iclparser, int exp_idx) {
-	process p(STAGES, iinput, iclparser, exp_idx);
+hcube* go(input* iinput, int exp_idx) {
+	process p(iinput, exp_idx);
 	p.run();
 	return p.h_datacube->deepcopy();
 }
@@ -42,14 +25,14 @@ int main(int argc, char **argv) {
 	// Parse the command line input and process
 	//
 	clparser* iclparser = new clparser(argc, argv);
-	input* iinput = new input(iclparser->in_FITS_filename, iclparser->in_params_filename, true);
+	input* iinput = new input(iclparser->in_FITS_filename, iclparser->in_params_filename, iclparser->in_config_filename, true);
 	printf("\n");
 
 	char broker_message_buffer[255];
 	to_stdout("\tBROKER\tstarting asynchronous process broker...");
 	std::vector<std::future<hcube*>> running_processes;
 	for (int i = 0; i < iinput->dim[2]; i++) {
-		int available_slots = nCPUCORES;
+		int available_slots = iinput->nCPUCORES;
 		for (std::vector<std::future<hcube*>>::iterator it = running_processes.begin(); it != running_processes.end(); ++it) {
 			if (it->wait_for(std::chrono::microseconds(1)) != future_status::ready) {
 				available_slots--;
@@ -60,7 +43,7 @@ int main(int argc, char **argv) {
 		if (available_slots > 0) {
 			sprintf(broker_message_buffer, "\tBROKER\tassigning new process (%d) to slot", i);
 			to_stdout(broker_message_buffer);
-			running_processes.push_back(std::async(go, iinput, iclparser, i));
+			running_processes.push_back(std::async(go, iinput, i));
 		} else {
 			to_stdout("\tBROKER\twaiting for next available slot");
 			bool slot_is_available = false;

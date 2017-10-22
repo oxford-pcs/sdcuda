@@ -8,20 +8,19 @@
     <param value="256" name="nCUDATHREADSPERBLOCK" description="number of threads per CUDA block"/>
   </device>
   <process>
-    <param value="2.45" name="RESCALE_WAVELENGTH" description="wavelength to rescale to (micron)"/>
+    <param value="2450" name="RESCALE_WAVELENGTH" description="wavelength to rescale to (nm)"/>
+    <param name="STAGES" description="process stage chain">
+      <stage name="stage" value="MAKE_DATACUBE_ON_HOST"/>
+      <stage name="stage" value="H_CROP_TO_EVEN_SQUARE"/>
+      <stage name="stage" value="COPY_HOST_DATACUBE_TO_DEVICE"/>
+      <stage name="stage" value="D_FFT"/>
+      <stage name="stage" value="D_FFTSHIFT"/>
+      <stage name="stage" value="D_RESCALE"/>
+      <stage name="stage" value="D_IRESCALE"/>
+      <stage name="stage" value="D_IFFTSHIFT"/>
+      <stage name="stage" value="D_IFFT"/>
+      <stage name="stage" value="D_CROP_TO_SMALLEST_DIMENSION"/>
+      <stage name="stage" value="COPY_DEVICE_DATACUBE_TO_HOST"/>
+    </param>
   </process>
-  <stages>
-    <stage>MAKE_DATACUBE_ON_HOST</stage>
-    <stage>H_CROP_TO_EVEN_SQUARE</stage>
-    <stage>COPY_HOST_DATACUBE_TO_DEVICE</stage>
-    <stage>D_FFT</stage>
-    <stage>D_FFTSHIFT</stage>
-    <stage>D_RESCALE</stage>
-    <stage>D_IRESCALE</stage>
-    <stage>D_IFFTSHIFT</stage>
-    <stage>D_IFFT</stage>
-    <stage>D_SET_DATA_TO_AMPLITUDE</stage>
-    <stage>D_CROP_TO_SMALLEST_DIMENSION</stage>
-    <stage>COPY_DEVICE_DATACUBE_TO_HOST</stage>
-  </stages>
 </root>

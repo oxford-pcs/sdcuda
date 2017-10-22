@@ -19,7 +19,7 @@ long spslice::getNumberOfElements() {
 }
 
 
-hspslice::hspslice(hcube* datacube, std::valarray<double> data, rectangle region, double wavelength) {
+hspslice::hspslice(hcube* datacube, std::valarray<double> data, rectangle region, int wavelength) {
 	/*
 	Construct a slice in host memory from a datacube [datacube] with the data pointer [p_data] of
 	region [region] and at wavelength [wavelength].
@@ -34,7 +34,7 @@ hspslice::hspslice(hcube* datacube, std::valarray<double> data, rectangle region
 	}
 }
 
-hspslice::hspslice(hcube* datacube, std::valarray<Complex> data, rectangle region, double wavelength) {
+hspslice::hspslice(hcube* datacube, std::valarray<Complex> data, rectangle region, int wavelength) {
 	/*
 	Construct a slice in host memory from a datacube [datacube] with the data pointer [p_data] of
 	region [region] and at wavelength [wavelength].
@@ -122,7 +122,7 @@ int hspslice::grow(rectangle region) {
 }
 
 
-dspslice::dspslice(dcube* datacube, std::valarray<double> data, rectangle region, double wavelength) {
+dspslice::dspslice(dcube* datacube, std::valarray<double> data, rectangle region, int wavelength) {
 	/*
 	Construct a slice in device memory from a datacube [datacube] with the data pointer [p_data] of
 	region [region] and at wavelength [wavelength].
@@ -137,7 +137,7 @@ dspslice::dspslice(dcube* datacube, std::valarray<double> data, rectangle region
 	}
 }
 
-dspslice::dspslice(dcube* datacube, std::valarray<Complex> data, rectangle region, double wavelength) {
+dspslice::dspslice(dcube* datacube, std::valarray<Complex> data, rectangle region, int wavelength) {
 	/*
 	Construct a slice in device memory from a datacube [datacube] with the data pointer [p_data] of
 	region [region] and at wavelength [wavelength].
@@ -174,7 +174,7 @@ int dspslice::clear() {
 	*/
 	cudaMemset(dspslice::p_data, 0, dspslice::memsize);
 	if (cudaGetLastError() != cudaSuccess) {
-		fprintf(stderr, "Cuda error: Failed to memset\n");
+		throw_error(CUDA_FAIL_SET_MEMORY_D);
 	}
 	return 0;
 }

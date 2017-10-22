@@ -38,8 +38,8 @@ class dcube;
 class hcube : public cube, public hmemory {
 public:
 	hcube() {};
-	hcube(std::valarray<double>, std::vector<long>, std::vector<double>);
-	hcube(std::valarray<Complex>, std::vector<long>, std::vector<double>, ccube_domains);
+	hcube(std::valarray<double>, std::vector<long>, std::vector<int>);
+	hcube(std::valarray<Complex>, std::vector<long>, std::vector<int>, ccube_domains);
 	hcube(dcube*);
 	~hcube();
 	std::vector<hspslice*> slices;

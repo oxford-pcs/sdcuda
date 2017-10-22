@@ -41,9 +41,6 @@
     <ClCompile Include="cclparser.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="ccomplex.cuh">
-      <Filter>Source</Filter>
-    </ClCompile>
     <ClCompile Include="cspaxel.cpp">
       <Filter>Source</Filter>
     </ClCompile>
@@ -61,6 +58,9 @@
     </ClCompile>
     <ClCompile Include="errors.cpp">
       <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="ccomplex.cuh">
+      <Filter>Header</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
