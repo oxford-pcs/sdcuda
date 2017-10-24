@@ -9,7 +9,8 @@
 
 using std::valarray;
 
-void memory::memcpydd(Complex* dst, Complex* src, long size) {
+template <class T>
+void memory<T>::memcpydd(T* dst, T* src, long size) {
 	/*
 	Copy block of memory of size [size] from device location [src] to device location [dst].
 	*/
@@ -19,7 +20,8 @@ void memory::memcpydd(Complex* dst, Complex* src, long size) {
 	}
 }
 
-void memory::memcpydh(Complex* dst, Complex* src, long size) {
+template <class T>
+void memory<T>::memcpydh(T* dst, T* src, long size) {
 	/*
 	Copy block of memory of size [size] from device location [src] to host location [dst].
 	*/
@@ -29,7 +31,8 @@ void memory::memcpydh(Complex* dst, Complex* src, long size) {
 	}
 }
 
-void memory::memcpyhd(Complex* dst, Complex* src, long size) {
+template <class T>
+void memory<T>::memcpyhd(T* dst, T* src, long size) {
 	/*
 	Copy block of memory of size [size] from host location [src] to device location [dst].
 	*/
@@ -39,7 +42,8 @@ void memory::memcpyhd(Complex* dst, Complex* src, long size) {
 	}
 }
 
-void memory::memcpyhh(Complex* dst, Complex* src, long size) {
+template <class T>
+void memory<T>::memcpyhh(T* dst, T* src, long size) {
 	/*
 	Copy block of memory of size [size] from host location [src] to host location [dst].
 	*/
@@ -50,7 +54,8 @@ void memory::memcpyhh(Complex* dst, Complex* src, long size) {
 }
 
 
-void hmemory::free(Complex* data) {
+template <class T> 
+void hmemory<T>::free(T* data) {
 	/*
 	Free host memory block.
 	*/
@@ -62,11 +67,12 @@ void hmemory::free(Complex* data) {
 	}
 }
 
-Complex* hmemory::malloc(long size, bool zero_initialise) {
+template <class T> 
+T* hmemory<T>::malloc(long size, bool zero_initialise) {
 	/*
 	Allocate a piece of memory on the host of size [size].
 	*/
-	Complex* data = NULL;
+	T* data = NULL;
 	cudaMallocHost(&(data), size);
 	if (cudaGetLastError() != cudaSuccess) {
 		throw_error(CUDA_FAIL_ALLOCATE_MEMORY_H);
@@ -77,11 +83,12 @@ Complex* hmemory::malloc(long size, bool zero_initialise) {
 	return data;
 }
 
-Complex* hmemory::realloc(Complex* old_data, long new_size, long old_size, bool zero_initialise_if_grow) {
+template <class T> 
+T* hmemory<T>::realloc(T* old_data, long new_size, long old_size, bool zero_initialise_if_grow) {
 	/*
 	Reallocate a piece of memory of size [old_size] on the host of size [new_size].
 	*/
-	Complex* new_data = NULL;
+	T* new_data = NULL;
 	if (new_size > old_size) {
 		if (zero_initialise_if_grow) {
 			new_data = hmemory::malloc(new_size, true);
@@ -98,7 +105,8 @@ Complex* hmemory::realloc(Complex* old_data, long new_size, long old_size, bool 
 }
 
 
-void dmemory::free(Complex* data) {
+template <class T> 
+void dmemory<T>::free(T* data) {
 	/*
 	Free device memory block.
 	*/
@@ -110,11 +118,12 @@ void dmemory::free(Complex* data) {
 	}
 }
 
-Complex* dmemory::malloc(long size, bool zero_initialise) {
+template <class T> 
+T* dmemory<T>::malloc(long size, bool zero_initialise) {
 	/*
 	Allocate a piece of memory on the device of size [size].
 	*/
-	Complex* data = NULL;
+	T* data = NULL;
 	cudaMalloc((void**)&(data), size);
 	if (cudaGetLastError() != cudaSuccess) {
 		throw_error(CUDA_FAIL_ALLOCATE_MEMORY_D);
@@ -128,11 +137,12 @@ Complex* dmemory::malloc(long size, bool zero_initialise) {
 	return data;
 }
 
-Complex* dmemory::realloc(Complex* old_data, long new_size, long old_size, bool zero_initialise_if_grow) {
+template <class T> 
+T* dmemory<T>::realloc(T* old_data, long new_size, long old_size, bool zero_initialise_if_grow) {
 	/*
 	Reallocate a piece of memory of size [old_size] on the device of size [new_size].
 	*/
-	Complex* new_data = NULL;
+	T* new_data = NULL;
 	if (new_size > old_size) {
 		if (zero_initialise_if_grow) {
 			new_data = dmemory::malloc(new_size, true);
@@ -147,3 +157,9 @@ Complex* dmemory::realloc(Complex* old_data, long new_size, long old_size, bool 
 	dmemory::free(old_data);
 	return new_data;
 }
+
+
+// explictly instatiate required classes
+template class memory<Complex>;
+template class hmemory<Complex>;
+template class dmemory<Complex>;

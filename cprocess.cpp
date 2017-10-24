@@ -1,6 +1,7 @@
 #include "cprocess.h"
 
 #include "ccube.h"
+#include "cspaxel.h"
 #include "cinput.h"
 #include "cclparser.h"
 #include "cudacalls.cuh"
@@ -40,6 +41,22 @@ void process::cropToEvenSquareOnHost() {
 
 void process::cropToSmallestDimensionOnDevice() {
 	d_datacube->crop(d_datacube->getSmallestSliceRegion());
+}
+
+void process::fitPolyToSpaxelAndSubtractOnDevice(int poly_order) {
+	std::vector<dspaxel*> d_spaxels;
+	if (process::d_datacube->state == OK) {
+		for (int i = 0; i < d_datacube->slices[0]->region.x_size*d_datacube->slices[0]->region.y_size; i++) {
+			d_spaxels.push_back(new dspaxel(process::d_datacube, i));
+		}
+	} else {
+		throw_error(CCUBE_FAIL_INTEGRITY_CHECK);
+	}
+	for (std::vector<dspaxel*>::iterator it = d_spaxels.begin(); it != d_spaxels.end(); ++it) {
+		/*cudaFitPolynomial(stoi(process::iinput->config_device["nCUDABLOCKS"]),
+			stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]),
+			(*it)->p_data, poly_order, d_datacube->slices.size());*/
+	}
 }
 
 void process::fftOnDevice() {
@@ -199,66 +216,72 @@ void process::step(int stage, int nstages) {
 	switch (process::stages.front()) {
 	case COPY_DEVICE_DATACUBE_TO_HOST:
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tcopying device datacube to host", process::exp_idx, stage, nstages);
-		process::copyDeviceDatacubeToHost();
 		to_stdout(process::message_buffer);
+		process::copyDeviceDatacubeToHost();
 		break;
 	case COPY_HOST_DATACUBE_TO_DEVICE:
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tcopying host datacube to device", process::exp_idx, stage, nstages);
-		process::copyHostDatacubeToDevice();
 		to_stdout(process::message_buffer);
+		process::copyHostDatacubeToDevice();
 		break;
 	case D_CROP_TO_SMALLEST_DIMENSION:
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tcropping datacube to smallest dimension on device", process::exp_idx, stage, nstages);
-		process::cropToSmallestDimensionOnDevice();
 		to_stdout(process::message_buffer);
+		process::cropToSmallestDimensionOnDevice();
+		break;
+	case D_SPAXEL_FIT_POLY_AND_SUBTRACT:
+		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tfitting polynomial to spaxels and subtracting on device", process::exp_idx, stage, nstages);
+		to_stdout(process::message_buffer);
+		process::fitPolyToSpaxelAndSubtractOnDevice(
+			stoi(process::iinput->stage_parameters[D_SPAXEL_FIT_POLY_AND_SUBTRACT]["POLY_ORDER"]));
 		break;
 	case D_FFT:
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tffting datacube on device", process::exp_idx, stage, nstages);
-		process::fftOnDevice();
 		to_stdout(process::message_buffer);
+		process::fftOnDevice();
 		break;
 	case D_FFTSHIFT:
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tfftshifting datacube on device", process::exp_idx, stage, nstages);
-		process::fftshiftOnDevice();
 		to_stdout(process::message_buffer);
+		process::fftshiftOnDevice();
 		break;
 	case D_IFFT:
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tiffting datacube on device", process::exp_idx, stage, nstages);
-		process::iFftOnDevice();
 		to_stdout(process::message_buffer);
+		process::iFftOnDevice();
 		break;
 	case D_IFFTSHIFT:
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tifftshifting datacube on device", process::exp_idx, stage, nstages);
-		process::iFftshiftOnDevice();
 		to_stdout(process::message_buffer);
+		process::iFftshiftOnDevice();
 		break;
 	case D_RESCALE_DATACUBE_TO_PRE_RESCALE_SIZE:
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tscaling datacube to pre-rescale size on device", process::exp_idx, stage, nstages);
-		process::rescaleDatacubeToPreRescaleSizeOnDevice();
 		to_stdout(process::message_buffer);
+		process::rescaleDatacubeToPreRescaleSizeOnDevice();
 		break;
 	case D_RESCALE_DATACUBE_TO_REFERENCE_WAVELENGTH:
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tscaling datacube to reference wavelength on device", process::exp_idx, stage, nstages);
-		process::pre_rescale_regions = process::rescaleDatacubeToReferenceWavelengthOnDevice(stoi(process::iinput->stage_parameters[D_RESCALE_DATACUBE_TO_REFERENCE_WAVELENGTH]["WAVELENGTH"]));
 		to_stdout(process::message_buffer);
+		process::pre_rescale_regions = process::rescaleDatacubeToReferenceWavelengthOnDevice(
+			stoi(process::iinput->stage_parameters[D_RESCALE_DATACUBE_TO_REFERENCE_WAVELENGTH]["WAVELENGTH"]));
 		break;
 	case D_SET_DATA_TO_AMPLITUDE: 
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tsetting datacube data to amplitude on device", process::exp_idx, stage, nstages);
-		process::setDataToAmplitude();
 		to_stdout(process::message_buffer);
+		process::setDataToAmplitude();
 		break;
 	case H_CROP_TO_EVEN_SQUARE:
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tcropping datacube to even square on device", process::exp_idx, stage, nstages);
-		process::cropToEvenSquareOnHost();
 		to_stdout(process::message_buffer);
+		process::cropToEvenSquareOnHost();
 		break;
 	case MAKE_DATACUBE_ON_HOST:
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tmaking datacube on host", process::exp_idx, stage, nstages);
-		process::makeDatacubeOnHost();
 		to_stdout(process::message_buffer);
+		process::makeDatacubeOnHost();
 		break;
 	default:
-		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tcopied host datacube to device", process::exp_idx, stage, nstages);
 		throw_error(CPROCESS_UNKNOWN_STAGE);
 	}
 	process::stages.pop_front();

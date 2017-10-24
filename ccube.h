@@ -35,7 +35,7 @@ protected:
 };
 
 class dcube;
-class hcube : public cube, public hmemory {
+class hcube : public cube, public hmemory<Complex> {
 public:
 	hcube() {};
 	hcube(std::valarray<double>, std::vector<long>, std::vector<int>);
@@ -55,7 +55,7 @@ public:
 	void write(complex_part, std::string, int, bool);
 };
 
-class dcube : public cube, public dmemory {
+class dcube : public cube, public dmemory<Complex> {
 public:
 	dcube() {};
 	dcube(hcube*);

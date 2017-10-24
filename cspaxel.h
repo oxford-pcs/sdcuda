@@ -15,14 +15,14 @@ public:
 	Complex* p_data = NULL;
 };
 
-class hspaxel : public spaxel, public hmemory {
+class hspaxel : public spaxel, public hmemory<Complex> {
 public:
 	hspaxel(hcube*, int);
 	~hspaxel();
 	hcube* h_datacube;
 };
 
-class dspaxel : public spaxel, public dmemory {
+class dspaxel : public spaxel, public dmemory<Complex> {
 public:
 	dspaxel(dcube*, int);
 	~dspaxel();

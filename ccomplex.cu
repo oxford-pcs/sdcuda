@@ -6,6 +6,8 @@
 #include <cufft.h>
 #include <stdio.h>
 
+#include "ccube.h"
+
 // DEVICE FUNCTIONS
 
 __device__ __host__ Complex cAdd(Complex a, Complex b) {
@@ -152,6 +154,19 @@ __global__ void cAdd2D(Complex* a, Complex* b, long size) {
 	// computations, i.e. if numThreads < size
 	for (int i = threadID; i < size; i += numThreads) {
 		a[i] = cAdd(a[i], b[i]);
+	}
+}
+
+__global__ void cFitPolynomial(Complex* a, int spaxel_idx, long size) {
+	/*
+	Get spaxel data with index [spaxel_idx] from datacube [datacube].
+	*/
+	const int numThreads = blockDim.x * gridDim.x;
+	const int threadID = blockIdx.x * blockDim.x + threadIdx.x;
+
+	// this is required as one thread may need to do multiple 
+	// computations, i.e. if numThreads < size
+	for (int i = threadID; i < size; i += numThreads) {
 	}
 }
 

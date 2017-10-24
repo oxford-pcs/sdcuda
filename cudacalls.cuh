@@ -1,7 +1,9 @@
 #pragma once
 
 #include "ccomplex.cuh"
+#include "ccube.h"
 
+void cudaFitPolynomial(int, int, Complex*, int, long);
 void cudaFftShift2D(int, int, Complex*, Complex*, long);
 void cudaIFftShift2D(int, int, Complex*, Complex*, long);
 void cudaScale2D(int, int, Complex*, double, long);

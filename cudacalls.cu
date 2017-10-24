@@ -1,4 +1,9 @@
 #include "cudacalls.cuh"
+#include "ccube.h"
+
+void cudaFitPolynomial(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* in, int spaxel_idx, long size) {
+	cFitPolynomial << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(in, spaxel_idx, size);
+}
 
 void cudaFftShift2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* in, Complex* out, long x_size) {
 	cFftShift2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(in, out, x_size);

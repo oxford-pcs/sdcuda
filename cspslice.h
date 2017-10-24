@@ -25,7 +25,7 @@ public:
 class hcube;
 class dspslice;
 
-class hspslice : public spslice, public hmemory {
+class hspslice : public spslice, public hmemory<Complex> {
 public:
 	hcube* datacube;
 	hspslice() {};
@@ -41,7 +41,7 @@ public:
 
 class dcube;
 
-class dspslice : public spslice, public dmemory {
+class dspslice : public spslice, public dmemory<Complex> {
 public:
 	dcube* datacube;
 	dspslice() {};

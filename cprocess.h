@@ -17,6 +17,7 @@ enum process_stages {
 	D_IFFTSHIFT,
 	D_RESCALE_DATACUBE_TO_PRE_RESCALE_SIZE,
 	D_RESCALE_DATACUBE_TO_REFERENCE_WAVELENGTH,
+	D_SPAXEL_FIT_POLY_AND_SUBTRACT,
 	D_SET_DATA_TO_AMPLITUDE,
 	H_CROP_TO_EVEN_SQUARE,
 	MAKE_DATACUBE_ON_HOST
@@ -42,6 +43,7 @@ private:
 	void correctOffsetOnDevice();
 	void cropToEvenSquareOnHost();
 	void cropToSmallestDimensionOnDevice();
+	void fitPolyToSpaxelAndSubtractOnDevice(int);
 	void fftOnDevice();
 	void fftshiftOnDevice();
 	void iFftOnDevice();
