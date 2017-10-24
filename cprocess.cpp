@@ -48,8 +48,9 @@ void process::fftOnDevice() {
 		throw_error(CUDA_FAIL_SYNCHRONIZE);
 	}
 	for (std::vector<dspslice*>::iterator it = process::d_datacube->slices.begin(); it != process::d_datacube->slices.end(); ++it) {
-		cudaScale2D(process::iinput->nCUDABLOCKS, process::iinput->nCUDATHREADSPERBLOCK, (*it)->p_data, 
-			(1. / ((*it)->getDimensions().x*(*it)->getDimensions().y)), (*it)->memsize / sizeof(Complex));
+		cudaScale2D(stoi(process::iinput->config_device["nCUDABLOCKS"]),
+			stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]), 
+			(*it)->p_data, (1. / ((*it)->getDimensions().x*(*it)->getDimensions().y)), (*it)->memsize / sizeof(Complex));
 		if (cudaThreadSynchronize() != cudaSuccess) {
 			throw_error(CUDA_FAIL_SYNCHRONIZE);
 		}
@@ -63,7 +64,9 @@ void process::fftshiftOnDevice() {
 		Complex* p_data_in = process::d_datacube->slices[i]->p_data;
 		Complex* p_data_out = d_datacube_tmp->slices[i]->p_data;
 		long x_size = process::d_datacube->slices[i]->region.x_size;
-		cudaFftShift2D(process::iinput->nCUDABLOCKS, process::iinput->nCUDATHREADSPERBLOCK, p_data_in, p_data_out, x_size);
+		cudaFftShift2D(stoi(process::iinput->config_device["nCUDABLOCKS"]),
+			stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]), 
+			p_data_in, p_data_out, x_size);
 		if (cudaThreadSynchronize() != cudaSuccess) {
 			throw_error(CUDA_FAIL_SYNCHRONIZE);
 		}
@@ -86,7 +89,9 @@ void process::iFftshiftOnDevice() {
 		Complex* p_data_in = process::d_datacube->slices[i]->p_data;
 		Complex* p_data_out = d_datacube_tmp->slices[i]->p_data;
 		long x_size = process::d_datacube->slices[i]->region.x_size;
-		cudaIFftShift2D(process::iinput->nCUDABLOCKS, process::iinput->nCUDATHREADSPERBLOCK, p_data_in, p_data_out, x_size);
+		cudaIFftShift2D(stoi(process::iinput->config_device["nCUDABLOCKS"]),
+			stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]), 
+			p_data_in, p_data_out, x_size);
 		if (cudaThreadSynchronize() != cudaSuccess) {
 			throw_error(CUDA_FAIL_SYNCHRONIZE);
 		}
@@ -95,7 +100,7 @@ void process::iFftshiftOnDevice() {
 	process::d_datacube = d_datacube_tmp;
 }
 
-void process::iRescaleOnDevice() {
+void process::rescaleDatacubeToPreRescaleSizeOnDevice() {
 	std::vector<double> scale_factors;
 	for (int i = 0; i < process::d_datacube->slices.size(); i++) {
 		// can't use the reverse scale factor as the round function means that we wouldn't necessarily end up with the correct rescaled size
@@ -117,7 +122,8 @@ void process::iRescaleOnDevice() {
 			continue;
 		}
 		long x_size = process::d_datacube->slices[i]->region.x_size;
-		cudaTranslate2D(process::iinput->nCUDABLOCKS, process::iinput->nCUDATHREADSPERBLOCK, 
+		cudaTranslate2D(stoi(process::iinput->config_device["nCUDABLOCKS"]),
+			stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]),
 			process::d_datacube->slices[i]->p_data, offset, x_size);
 		if (cudaThreadSynchronize() != cudaSuccess) {
 			throw_error(CUDA_FAIL_SYNCHRONIZE);
@@ -130,11 +136,12 @@ void process::makeDatacubeOnHost() {
 	process::h_datacube = process::iinput->makeCube(process::exp_idx, true);
 }
 
-void process::rescaleOnDevice() {
+std::vector<rectangle> process::rescaleDatacubeToReferenceWavelengthOnDevice(int reference_wavelength) {
 	std::vector<double> scale_factors;
+	std::vector<rectangle> pre_rescale_regions;
 	for (std::vector<dspslice*>::iterator it = process::d_datacube->slices.begin(); it != process::d_datacube->slices.end(); ++it) {
-		process::pre_rescale_regions.push_back((*it)->region);
-		scale_factors.push_back((double)process::iinput->RESCALE_WAVELENGTH / (double)(*it)->wavelength);
+		pre_rescale_regions.push_back((*it)->region);
+		scale_factors.push_back(reference_wavelength / (double)(*it)->wavelength);
 	}
 	process::d_datacube->rescale(scale_factors);
 	// need to roll phase (spatial translation) for odd sized frames, otherwise there's a 0.5 pixel offset in x and y compared to the even frames after ifft.
@@ -150,17 +157,20 @@ void process::rescaleOnDevice() {
 			continue;
 		}
 		long x_size = process::d_datacube->slices[i]->region.x_size;
-		cudaTranslate2D(process::iinput->nCUDABLOCKS, process::iinput->nCUDATHREADSPERBLOCK, 
+		cudaTranslate2D(stoi(process::iinput->config_device["nCUDABLOCKS"]), 
+			stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]),
 			process::d_datacube->slices[i]->p_data, offset, x_size);
 		if (cudaThreadSynchronize() != cudaSuccess) {
 			throw_error(CUDA_FAIL_SYNCHRONIZE);
 		}
 	}
+	return pre_rescale_regions;
 }
 
 void process::setDataToAmplitude() {
 	for (std::vector<dspslice*>::iterator it = process::d_datacube->slices.begin(); it != process::d_datacube->slices.end(); ++it) {
-		cudaSetComplexRealAsAmplitude(process::iinput->nCUDABLOCKS, process::iinput->nCUDATHREADSPERBLOCK, 
+		cudaSetComplexRealAsAmplitude(stoi(process::iinput->config_device["nCUDABLOCKS"]),
+			stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]),
 			(*it)->p_data, (*it)->memsize / sizeof(Complex));
 		if (cudaThreadSynchronize() != cudaSuccess) {
 			throw_error(CUDA_FAIL_SYNCHRONIZE);
@@ -222,14 +232,14 @@ void process::step(int stage, int nstages) {
 		process::iFftshiftOnDevice();
 		to_stdout(process::message_buffer);
 		break;
-	case D_IRESCALE:
-		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tinverse rescaling datacube on device", process::exp_idx, stage, nstages);
-		process::iRescaleOnDevice();
+	case D_RESCALE_DATACUBE_TO_PRE_RESCALE_SIZE:
+		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tscaling datacube to pre-rescale size on device", process::exp_idx, stage, nstages);
+		process::rescaleDatacubeToPreRescaleSizeOnDevice();
 		to_stdout(process::message_buffer);
 		break;
-	case D_RESCALE:
-		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tscaling datacube on device", process::exp_idx, stage, nstages);
-		process::rescaleOnDevice();
+	case D_RESCALE_DATACUBE_TO_REFERENCE_WAVELENGTH:
+		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tscaling datacube to reference wavelength on device", process::exp_idx, stage, nstages);
+		process::pre_rescale_regions = process::rescaleDatacubeToReferenceWavelengthOnDevice(stoi(process::iinput->stage_parameters[D_RESCALE_DATACUBE_TO_REFERENCE_WAVELENGTH]["WAVELENGTH"]));
 		to_stdout(process::message_buffer);
 		break;
 	case D_SET_DATA_TO_AMPLITUDE: 

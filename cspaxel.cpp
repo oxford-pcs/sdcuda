@@ -1,13 +1,27 @@
 #include "cspaxel.h"
+#include "cspslice.h"
 
 #include "ccube.h"
 
-dspaxel::dspaxel(dcube* d_datacube, std::vector<long> idx) {
+hspaxel::hspaxel(hcube* h_datacube, int spaxel_idx) {
 	/*
-	Construct a spaxel in device memory using a cube [d_datacube] in device memory.
+	Construct a spaxel in host memory using spaxel [spaxel_idx] of cube [h_datacube].
 	*/
-	dspaxel::d_datacube = d_datacube;
-	//dspaxel::p_data = dspaxel::malloc(d_datacube->dim[2] * sizeof(Complex), true);	// this is an array of pointers pointing towards d_datacube [p_data] values
+	hspaxel::h_datacube = h_datacube;
+	hspaxel::p_data = malloc(h_datacube->slices.size()*sizeof(Complex), true);
+	for (int i = 0; i < hspaxel::h_datacube->slices.size(); i++) {
+		hspaxel::p_data[i] = hspaxel::h_datacube->slices[i]->p_data[spaxel_idx];
+	}
+}
+
+hspaxel::~hspaxel() {
+	hspaxel::free(hspaxel::p_data);
+}
+
+dspaxel::dspaxel(dcube* dcube, int spaxel_idx) {
+	/*
+	Construct a spaxel in device memory using spaxel [spaxel_idx] of cube [d_datacube].
+	*/
 }
 
 dspaxel::~dspaxel() {

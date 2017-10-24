@@ -18,8 +18,8 @@ const std::map<std::string, process_stages> process_stages_mapping {
 	{ "D_FFTSHIFT", D_FFTSHIFT },
 	{ "D_IFFT", D_IFFT },
 	{ "D_IFFTSHIFT", D_IFFTSHIFT },
-	{ "D_IRESCALE", D_IRESCALE },
-	{ "D_RESCALE", D_RESCALE },
+	{ "D_RESCALE_DATACUBE_TO_PRE_RESCALE_SIZE", D_RESCALE_DATACUBE_TO_PRE_RESCALE_SIZE },
+	{ "D_RESCALE_DATACUBE_TO_REFERENCE_WAVELENGTH", D_RESCALE_DATACUBE_TO_REFERENCE_WAVELENGTH },
 	{ "D_SET_DATA_TO_AMPLITUDE", D_SET_DATA_TO_AMPLITUDE },
 	{ "H_CROP_TO_EVEN_SQUARE", H_CROP_TO_EVEN_SQUARE },
 	{ "MAKE_DATACUBE_ON_HOST", MAKE_DATACUBE_ON_HOST }
@@ -36,11 +36,10 @@ public:
 	xml_document<> config;
 	xml_document<> params;
 	std::vector<int> wavelengths;
-	int nCPUCORES;
-	int nCUDABLOCKS;
-	int nCUDATHREADSPERBLOCK;
-	int RESCALE_WAVELENGTH;					// nm
+	std::map<std::string, std::string> config_host;
+	std::map<std::string, std::string> config_device;
 	std::list<process_stages> stages;
+	std::map<process_stages, std::map<std::string, std::string>> stage_parameters;
 private:
 	void readXMLFile(xml_document<>&, string, bool);
 	void readFITSFile(std::valarray<double>&, std::vector<long>&, string, bool);

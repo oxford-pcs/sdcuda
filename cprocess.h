@@ -15,8 +15,8 @@ enum process_stages {
 	D_FFTSHIFT,
 	D_IFFT,
 	D_IFFTSHIFT,
-	D_IRESCALE,
-	D_RESCALE,
+	D_RESCALE_DATACUBE_TO_PRE_RESCALE_SIZE,
+	D_RESCALE_DATACUBE_TO_REFERENCE_WAVELENGTH,
 	D_SET_DATA_TO_AMPLITUDE,
 	H_CROP_TO_EVEN_SQUARE,
 	MAKE_DATACUBE_ON_HOST
@@ -34,8 +34,8 @@ public:
 	dcube* d_datacube;
 	int exp_idx;
 	char message_buffer[255];
-	std::vector<rectangle> pre_rescale_regions;
 	std::list<process_stages> stages;
+	std::vector<rectangle> pre_rescale_regions;
 private:
 	void copyDeviceDatacubeToHost();
 	void copyHostDatacubeToDevice();
@@ -46,10 +46,10 @@ private:
 	void fftshiftOnDevice();
 	void iFftOnDevice();
 	void iFftshiftOnDevice();
-	void iRescaleOnDevice();
 	void makeDatacubeOnHost();
 	void normaliseOnDevice();
-	void rescaleOnDevice();
+	void rescaleDatacubeToPreRescaleSizeOnDevice();
+	std::vector<rectangle> rescaleDatacubeToReferenceWavelengthOnDevice(int);
 	void setDataToAmplitude();
 	void step(int, int);
 };

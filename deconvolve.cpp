@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
 	std::vector<std::future<process*>> running_processes;
 	int exposure = 0;
 	while (exposure < iinput->dim[2]) {
-		int available_slots = iinput->nCPUCORES;
+		int available_slots = stoi(iinput->config_host["nCPUCORES"]);
 		for (std::vector<std::future<process*>>::iterator it = running_processes.begin(); it != running_processes.end(); ++it) {
 			if (it->wait_for(std::chrono::microseconds(1)) != future_status::ready) {
 				available_slots--;
