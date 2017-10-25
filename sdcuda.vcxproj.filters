@@ -21,6 +21,9 @@
       <UniqueIdentifier>{111a9307-ca48-42a1-ac2b-b6c286e05ec6}</UniqueIdentifier>
       <Extensions>*.xml</Extensions>
     </Filter>
+    <Filter Include="Templates">
+      <UniqueIdentifier>{4029bbdd-0872-4dde-b799-fbd5d2d2a47b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ccube.cpp">
@@ -44,9 +47,6 @@
     <ClCompile Include="cspaxel.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="cmemory.cpp">
-      <Filter>Source</Filter>
-    </ClCompile>
     <ClCompile Include="deconvolve.cpp">
       <Filter>Source</Filter>
     </ClCompile>
@@ -61,6 +61,9 @@
     </ClCompile>
     <ClCompile Include="ccomplex.cuh">
       <Filter>Header</Filter>
+    </ClCompile>
+    <ClCompile Include="cmemory.cpp">
+      <Filter>Source</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

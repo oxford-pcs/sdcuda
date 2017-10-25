@@ -12,19 +12,19 @@ class spaxel {
 public:
 	spaxel() {};
 	~spaxel() {};
-	Complex* p_data = NULL;
+	Complex** p_data = NULL;
 };
 
-class hspaxel : public spaxel, public hmemory<Complex> {
+class hspaxel : public spaxel, public hmemory<Complex*> {
 public:
 	hspaxel(hcube*, int);
-	~hspaxel();
+	~hspaxel() {};
 	hcube* h_datacube;
 };
 
-class dspaxel : public spaxel, public dmemory<Complex> {
+class dspaxel : public spaxel, public dmemory<Complex*> {
 public:
 	dspaxel(dcube*, int);
-	~dspaxel();
+	~dspaxel() {};
 	dcube* d_datacube;
 };

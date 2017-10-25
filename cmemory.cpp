@@ -158,8 +158,9 @@ T* dmemory<T>::realloc(T* old_data, long new_size, long old_size, bool zero_init
 	return new_data;
 }
 
-
-// explictly instatiate required classes
+// explicit declarations required to construct classes of required types
 template class memory<Complex>;
 template class hmemory<Complex>;
 template class dmemory<Complex>;
+template class hmemory<Complex*>;
+template class dmemory<Complex*>;
