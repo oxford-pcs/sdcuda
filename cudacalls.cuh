@@ -3,6 +3,7 @@
 #include "ccomplex.cuh"
 #include "ccube.h"
 
+cudaError cudaSubtractPoly(int, int, Complex**, Complex*, long, int*, long, long);
 cudaError cudaGetSpaxelData2D(int, int, Complex**, Complex*, long, long);
 cudaError cudaFftShift2D(int, int, Complex*, Complex*, long);
 cudaError cudaIFftShift2D(int, int, Complex*, Complex*, long);

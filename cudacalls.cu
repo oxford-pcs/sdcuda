@@ -1,6 +1,11 @@
 #include "cudacalls.cuh"
 #include "ccube.h"
 
+cudaError cudaSubtractPoly(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex** in, Complex* coeffs, long n_coeffs, int* wavelengths, long n_slices, long n_spaxels) {
+	cSubtractPoly << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(in, coeffs, n_coeffs, wavelengths, n_slices, n_spaxels);
+	return cudaGetLastError();
+}
+
 cudaError cudaGetSpaxelData2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex** in, Complex* out, long n_slices, long n_spaxels) {
 	cGetSpaxelData2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(in, out, n_slices, n_spaxels);
 	return cudaGetLastError();

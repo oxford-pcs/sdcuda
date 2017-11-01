@@ -36,7 +36,7 @@ public:
 	int exp_idx;
 	char message_buffer[255];
 	std::list<process_stages> stages;
-	std::vector<rectangle> pre_rescale_regions;
+	std::vector<double> inverse_scale_factors;
 private:
 	void copyDeviceDatacubeToHost();
 	void copyHostDatacubeToDevice();
@@ -51,7 +51,7 @@ private:
 	void makeDatacubeOnHost();
 	void normaliseOnDevice();
 	void rescaleDatacubeToPreRescaleSizeOnDevice();
-	std::vector<rectangle> rescaleDatacubeToReferenceWavelengthOnDevice(int);
+	std::vector<double> rescaleDatacubeToReferenceWavelengthOnDevice(int);
 	void setDataToAmplitude();
 	void step(int, int);
 };

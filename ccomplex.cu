@@ -72,7 +72,6 @@ __device__ __host__ Complex cSub(Complex a, Complex b) {
 	return c;
 }
 
-
 __device__ __host__ double cGetAmplitude(Complex a) {
 	/*
 	Get the amplitude of the complex number [a].
@@ -135,6 +134,14 @@ __device__ __host__ quadrant cGet2DQuadrantFrom1DIndex(long index, long dim1, lo
 			return Q4;
 		}
 	}
+}
+
+__device__ __host__ void cPolyValSub(Complex* in, Complex* coeffs, long n_coeffs, long x) {
+	double c = 0.;
+	for (int i = 0; i < n_coeffs; i++) {
+		c += powf(x, i) * coeffs[i].x;
+	}
+	in->x -= c;
 }
 
 __device__ __host__ Complex cTranslate(Complex a, long dim1, long dim2, long2 position, double2 translation) {
@@ -302,6 +309,21 @@ __global__ void cSetComplexRealAsAmplitude(Complex *a, long size) {
 	for (int i = threadID; i < size; i += numThreads) {
 		a[i].x = cGetAmplitude(a[i]);
 		a[i].y = 0;
+	}
+}
+
+__global__ void cSubtractPoly(Complex** in, Complex* coeffs, long n_coeffs, int* wavelengths, long n_slices, long n_spaxels) {
+	/*
+	*/
+	const int numThreads = blockDim.x * gridDim.x;
+	const int threadID = blockIdx.x * blockDim.x + threadIdx.x;
+
+	// this is required as one thread may need to do multiple 
+	// computations, i.e. if numThreads < size
+	for (int i = threadID; i < n_slices*n_spaxels; i += numThreads) {
+		int slice_idx = i / n_spaxels;
+		int spaxel_idx = i % n_spaxels;
+		cPolyValSub(&in[slice_idx][spaxel_idx], &coeffs[spaxel_idx*n_coeffs], n_coeffs, wavelengths[slice_idx]);
 	}
 }
 

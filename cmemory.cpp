@@ -168,3 +168,6 @@ template class dmemory<Complex*>;
 template class memory<Complex**>;
 template class hmemory<Complex**>;
 template class dmemory<Complex**>;
+template class memory<int>;
+template class hmemory<int>;
+template class dmemory<int>;
