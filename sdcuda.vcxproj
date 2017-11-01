@@ -179,7 +179,6 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClInclude Include="cudacalls.cuh" />
     <ClInclude Include="cinput.h" />
     <ClInclude Include="cmemory.h" />
-    <ClInclude Include="cspaxel.h" />
     <ClInclude Include="cspslice.h" />
     <ClInclude Include="cprocess.h" />
     <ClInclude Include="errors.h" />
@@ -200,7 +199,6 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClCompile Include="cprocess.cpp">
       <FileType>CppCode</FileType>
     </ClCompile>
-    <ClCompile Include="cspaxel.cpp" />
     <ClCompile Include="cspslice.cpp" />
     <ClCompile Include="errors.cpp" />
     <ClCompile Include="getopt.cpp" />

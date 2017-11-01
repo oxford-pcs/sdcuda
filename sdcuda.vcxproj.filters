@@ -44,9 +44,6 @@
     <ClCompile Include="cclparser.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="cspaxel.cpp">
-      <Filter>Source</Filter>
-    </ClCompile>
     <ClCompile Include="deconvolve.cpp">
       <Filter>Source</Filter>
     </ClCompile>
@@ -95,9 +92,6 @@
       <Filter>Header</Filter>
     </ClInclude>
     <ClInclude Include="cclparser.h">
-      <Filter>Header</Filter>
-    </ClInclude>
-    <ClInclude Include="cspaxel.h">
       <Filter>Header</Filter>
     </ClInclude>
     <ClInclude Include="cmemory.h">

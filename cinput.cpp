@@ -47,9 +47,6 @@ input::input(std::string in_fits_filename, std::string in_params_filename, std::
 	input::processFITSFile(in_fits_filename, true);
 	input::processSimulationParametersFile(in_params_filename, true);
 
-
-
-
 }
 
 hcube* input::makeCube(long n_exposure, bool verbose) {

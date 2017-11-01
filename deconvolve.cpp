@@ -5,13 +5,11 @@
 
 #include "cclparser.h"
 #include "cinput.h"
-#include "ccube.h"
-#include "ccomplex.cuh"
-#include "regions.h"
-#include "cspaxel.h"
 #include "cprocess.h"
 #include "logger.h"
 #include "banner.h"
+
+using namespace std;
 
 process* go(input* iinput, int exp_idx) {
 	process* p = new process(iinput, exp_idx);

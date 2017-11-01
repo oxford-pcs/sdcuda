@@ -1,7 +1,6 @@
 #include "cprocess.h"
 
 #include "ccube.h"
-#include "cspaxel.h"
 #include "cinput.h"
 #include "cclparser.h"
 #include "cudacalls.cuh"
@@ -44,18 +43,76 @@ void process::cropToSmallestDimensionOnDevice() {
 }
 
 void process::fitPolyToSpaxelAndSubtractOnDevice(int poly_order) {
-	std::vector<dspaxel*> d_spaxels;
 	if (process::d_datacube->state == OK) {
-		for (int i = 0; i < d_datacube->slices[0]->region.x_size*d_datacube->slices[0]->region.y_size; i++) {
-			d_spaxels.push_back(new dspaxel(process::d_datacube, i));
+		Complex** p_data_slices;	
+		p_data_slices = dmemory<Complex*>::malloc(process::d_datacube->slices.size()*sizeof(Complex*), true);
+		for (int i = 0; i < process::d_datacube->slices.size(); i++) {
+			dmemory<Complex*>::memcpyhd(&p_data_slices[i], &process::d_datacube->slices[i]->p_data, sizeof(Complex*));
 		}
+
+		Complex* p_data_spaxels;
+		p_data_spaxels = dmemory<Complex>::malloc(process::d_datacube->slices[0]->getNumberOfElements()*
+			process::d_datacube->slices.size()*sizeof(Complex), true);
+
+		if (cudaGetSpaxelData2D(stoi(process::iinput->config_device["nCUDABLOCKS"]),
+			stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]),
+			p_data_slices, p_data_spaxels, process::d_datacube->slices.size(),
+			process::d_datacube->slices[0]->region.x_size*process::d_datacube->slices[0]->region.y_size) != cudaSuccess) {
+			throw_error(CUDA_FAIL_GET_SPAXEL_DATA_2D);
+		}
+		if (cudaThreadSynchronize() != cudaSuccess) {
+			throw_error(CUDA_FAIL_SYNCHRONIZE);
+		}
+
+		// form A in column-major and copy to device
+		Complex* A;
+		A = hmemory<Complex>::malloc(d_datacube->slices.size()*(poly_order + 1)*sizeof(Complex), true);
+		for (int j = 0; j < poly_order + 1; j++) {
+			for (int i = 0; i < process::iinput->wavelengths.size(); i++) {
+				A[i + (j* process::d_datacube->slices.size())].x = pow(process::iinput->wavelengths[i], j);
+				A[i + (j* process::d_datacube->slices.size())].y = 0;
+			}
+		}
+		Complex* d_A;
+		d_A = dmemory<Complex>::malloc(process::d_datacube->slices.size()*(poly_order + 1)*sizeof(Complex), true);
+		dmemory<Complex>::memcpyhd(d_A, A, process::d_datacube->slices.size()*(poly_order + 1)*sizeof(Complex));
+
+		// LSQ
+		Complex* p_data_spaxel_coeffs;
+		culaStatus s;
+		s = culaInitialize();
+		if (s != culaNoError) {
+		} else {
+			p_data_spaxel_coeffs = dmemory<Complex>::malloc(process::d_datacube->slices[0]->getNumberOfElements()*(poly_order + 1)*sizeof(Complex), true);
+			for (int i = 0; i < process::d_datacube->slices[0]->getNumberOfElements(); i++) {
+				Complex* p_spaxel = &p_data_spaxels[i*process::d_datacube->slices.size()];
+				s = culaDeviceZgels('N', process::d_datacube->slices.size(), (poly_order + 1), 1, reinterpret_cast<culaDeviceDoubleComplex*>(d_A),
+					process::d_datacube->slices.size(), reinterpret_cast<culaDeviceDoubleComplex*>(p_spaxel),
+					process::d_datacube->slices.size());
+				dmemory<Complex>::memcpydd(&p_data_spaxel_coeffs[i*(poly_order + 1)], p_spaxel, (poly_order + 1)*sizeof(Complex));
+				if (s != culaNoError) {
+				} else {
+
+				}
+			}
+		}
+
+		// Evaluate polynomial
+		// evaluate call f(p_data_slices, p_data_spaxel_coeffs, &process::iinput->wavelengths[0], ncoeffs, nwavelengths, nslices, nspaxels)
+		//if (cudaThreadSynchronize() != cudaSuccess) {
+		//	throw_error(CUDA_FAIL_SYNCHRONIZE);
+		//}
+
+		culaShutdown();
+
+		dmemory<Complex*>::free(p_data_slices);
+		dmemory<Complex>::free(p_data_spaxels);
+		hmemory<Complex>::free(A);
+		dmemory<Complex>::free(d_A);
+		dmemory<Complex>::free(p_data_spaxel_coeffs);
+
 	} else {
 		throw_error(CCUBE_FAIL_INTEGRITY_CHECK);
-	}
-	for (std::vector<dspaxel*>::iterator it = d_spaxels.begin(); it != d_spaxels.end(); ++it) {
-		/*cudaFitPolynomial(stoi(process::iinput->config_device["nCUDABLOCKS"]),
-			stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]),
-			(*it)->p_data, poly_order, d_datacube->slices.size());*/
 	}
 }
 
@@ -81,9 +138,11 @@ void process::fftshiftOnDevice() {
 		Complex* p_data_in = process::d_datacube->slices[i]->p_data;
 		Complex* p_data_out = d_datacube_tmp->slices[i]->p_data;
 		long x_size = process::d_datacube->slices[i]->region.x_size;
-		cudaFftShift2D(stoi(process::iinput->config_device["nCUDABLOCKS"]),
-			stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]), 
-			p_data_in, p_data_out, x_size);
+		if (cudaFftShift2D(stoi(process::iinput->config_device["nCUDABLOCKS"]),
+			stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]),
+			p_data_in, p_data_out, x_size) != cudaSuccess) {
+			throw_error(CUDA_FAIL_FFTSHIFT);
+		}
 		if (cudaThreadSynchronize() != cudaSuccess) {
 			throw_error(CUDA_FAIL_SYNCHRONIZE);
 		}
@@ -106,9 +165,11 @@ void process::iFftshiftOnDevice() {
 		Complex* p_data_in = process::d_datacube->slices[i]->p_data;
 		Complex* p_data_out = d_datacube_tmp->slices[i]->p_data;
 		long x_size = process::d_datacube->slices[i]->region.x_size;
-		cudaIFftShift2D(stoi(process::iinput->config_device["nCUDABLOCKS"]),
-			stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]), 
-			p_data_in, p_data_out, x_size);
+		if (cudaIFftShift2D(stoi(process::iinput->config_device["nCUDABLOCKS"]),
+			stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]),
+			p_data_in, p_data_out, x_size) != cudaSuccess) {
+			throw_error(CUDA_FAIL_IFFTSHIFT);
+		}
 		if (cudaThreadSynchronize() != cudaSuccess) {
 			throw_error(CUDA_FAIL_SYNCHRONIZE);
 		}
@@ -139,9 +200,11 @@ void process::rescaleDatacubeToPreRescaleSizeOnDevice() {
 			continue;
 		}
 		long x_size = process::d_datacube->slices[i]->region.x_size;
-		cudaTranslate2D(stoi(process::iinput->config_device["nCUDABLOCKS"]),
+		if (cudaTranslate2D(stoi(process::iinput->config_device["nCUDABLOCKS"]),
 			stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]),
-			process::d_datacube->slices[i]->p_data, offset, x_size);
+			process::d_datacube->slices[i]->p_data, offset, x_size) != cudaSuccess) {
+			throw_error(CUDA_FAIL_TRANSLATE_2D);
+		}
 		if (cudaThreadSynchronize() != cudaSuccess) {
 			throw_error(CUDA_FAIL_SYNCHRONIZE);
 		}
@@ -174,9 +237,11 @@ std::vector<rectangle> process::rescaleDatacubeToReferenceWavelengthOnDevice(int
 			continue;
 		}
 		long x_size = process::d_datacube->slices[i]->region.x_size;
-		cudaTranslate2D(stoi(process::iinput->config_device["nCUDABLOCKS"]), 
+		if (cudaTranslate2D(stoi(process::iinput->config_device["nCUDABLOCKS"]),
 			stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]),
-			process::d_datacube->slices[i]->p_data, offset, x_size);
+			process::d_datacube->slices[i]->p_data, offset, x_size) != cudaSuccess) {
+			throw_error(CUDA_FAIL_TRANSLATE_2D);
+		}
 		if (cudaThreadSynchronize() != cudaSuccess) {
 			throw_error(CUDA_FAIL_SYNCHRONIZE);
 		}
@@ -186,9 +251,11 @@ std::vector<rectangle> process::rescaleDatacubeToReferenceWavelengthOnDevice(int
 
 void process::setDataToAmplitude() {
 	for (std::vector<dspslice*>::iterator it = process::d_datacube->slices.begin(); it != process::d_datacube->slices.end(); ++it) {
-		cudaSetComplexRealAsAmplitude(stoi(process::iinput->config_device["nCUDABLOCKS"]),
+		if (cudaSetComplexRealAsAmplitude(stoi(process::iinput->config_device["nCUDABLOCKS"]),
 			stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]),
-			(*it)->p_data, (*it)->memsize / sizeof(Complex));
+			(*it)->p_data, (*it)->memsize / sizeof(Complex)) != cudaSuccess) {
+			throw_error(CUDA_FAIL_SET_COMPLEX_REAL_AS_AMPLITUDE);
+		}
 		if (cudaThreadSynchronize() != cudaSuccess) {
 			throw_error(CUDA_FAIL_SYNCHRONIZE);
 		}

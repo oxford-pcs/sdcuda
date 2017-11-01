@@ -3,19 +3,19 @@
   <host>
     <param>
       <name>nCPUCORES</name>
-      <value>1</value>
+      <value>3</value>
       <description>number of CPU cores</description>
     </param>
   </host>
   <device>
     <param>
       <name>nCUDABLOCKS</name>
-      <value>64</value>
+      <value>8</value>
       <description>number of CUDA blocks</description>
     </param>
     <param>
       <name>nCUDATHREADSPERBLOCK</name>
-      <value>512</value>
+      <value>48</value>
       <description>number of threads per CUDA block</description>
     </param>
   </device>

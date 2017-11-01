@@ -89,6 +89,12 @@ __device__ __host__ double cGetPhase(Complex a) {
 	return phase;
 }
 
+__device__ __host__ void cGetSpaxelData(Complex** a, Complex* b, long spaxel_idx, long n_slices) {
+	for (int i = 0; i < n_slices; i++) {
+		b[i + (spaxel_idx*n_slices)] = a[i][spaxel_idx];
+	}
+}
+
 __device__ __host__ long cGet1DIndexFrom2DXY(long2 xy, long dim1) {
 	/*
 	Given a pair of coordinates [xy] and array x dimension [dim1], find the corresponding 1D index.
@@ -157,16 +163,16 @@ __global__ void cAdd2D(Complex* a, Complex* b, long size) {
 	}
 }
 
-__global__ void cFitPolynomial(Complex* a, int spaxel_idx, long size) {
+__global__ void cGetSpaxelData2D(Complex** a, Complex *b, long n_slices, long n_spaxels) {
 	/*
-	Get spaxel data with index [spaxel_idx] from datacube [datacube].
 	*/
 	const int numThreads = blockDim.x * gridDim.x;
 	const int threadID = blockIdx.x * blockDim.x + threadIdx.x;
 
 	// this is required as one thread may need to do multiple 
 	// computations, i.e. if numThreads < size
-	for (int i = threadID; i < size; i += numThreads) {
+	for (int i = threadID; i < n_spaxels; i += numThreads) {
+		cGetSpaxelData(a, b, i, n_slices);
 	}
 }
 

@@ -3,9 +3,9 @@
 #include "ccomplex.cuh"
 #include "ccube.h"
 
-void cudaFitPolynomial(int, int, Complex*, int, long);
-void cudaFftShift2D(int, int, Complex*, Complex*, long);
-void cudaIFftShift2D(int, int, Complex*, Complex*, long);
-void cudaScale2D(int, int, Complex*, double, long);
-void cudaSetComplexRealAsAmplitude(int, int, Complex*, long);
-void cudaTranslate2D(int, int, Complex*, double2, long);
+cudaError cudaGetSpaxelData2D(int, int, Complex**, Complex*, long, long);
+cudaError cudaFftShift2D(int, int, Complex*, Complex*, long);
+cudaError cudaIFftShift2D(int, int, Complex*, Complex*, long);
+cudaError cudaScale2D(int, int, Complex*, double, long);
+cudaError cudaSetComplexRealAsAmplitude(int, int, Complex*, long);
+cudaError cudaTranslate2D(int, int, Complex*, double2, long);

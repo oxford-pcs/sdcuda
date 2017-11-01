@@ -162,5 +162,9 @@ T* dmemory<T>::realloc(T* old_data, long new_size, long old_size, bool zero_init
 template class memory<Complex>;
 template class hmemory<Complex>;
 template class dmemory<Complex>;
+template class memory<Complex*>;
 template class hmemory<Complex*>;
 template class dmemory<Complex*>;
+template class memory<Complex**>;
+template class hmemory<Complex**>;
+template class dmemory<Complex**>;

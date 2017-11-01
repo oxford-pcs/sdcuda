@@ -1,26 +1,32 @@
 #include "cudacalls.cuh"
 #include "ccube.h"
 
-void cudaFitPolynomial(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* in, int spaxel_idx, long size) {
-	cFitPolynomial << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(in, spaxel_idx, size);
+cudaError cudaGetSpaxelData2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex** in, Complex* out, long n_slices, long n_spaxels) {
+	cGetSpaxelData2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(in, out, n_slices, n_spaxels);
+	return cudaGetLastError();
 }
 
-void cudaFftShift2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* in, Complex* out, long x_size) {
+cudaError cudaFftShift2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* in, Complex* out, long x_size) {
 	cFftShift2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(in, out, x_size);
+	return cudaGetLastError();
 }
 
-void cudaIFftShift2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* in, Complex* out, long x_size) {
+cudaError cudaIFftShift2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* in, Complex* out, long x_size) {
 	cIFftShift2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(in, out, x_size);
+	return cudaGetLastError();
 }
 
-void cudaScale2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* data, double constant, long memsize) {
+cudaError cudaScale2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* data, double constant, long memsize) {
 	cScale2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(data, constant, memsize);
+	return cudaGetLastError();
 }
 
-void cudaSetComplexRealAsAmplitude(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* a, long size) {
+cudaError cudaSetComplexRealAsAmplitude(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* a, long size) {
 	cSetComplexRealAsAmplitude << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(a, size);
+	return cudaGetLastError();
 }
 
-void cudaTranslate2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* a, double2 translation, long x_size) {
+cudaError cudaTranslate2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* a, double2 translation, long x_size) {
 	cTranslate2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(a, translation, x_size);
+	return cudaGetLastError();
 }

@@ -78,7 +78,7 @@ void hspslice::crop(rectangle new_region) {
 	*/
 	rectangle* old_region = &(hspslice::region);
 	for (int row = 0; row < new_region.y_size; row++) {
-		dspslice::memcpyhh(&hspslice::p_data[(row*new_region.x_size)], &hspslice::p_data[((row + (new_region.y_start - old_region->y_start))*old_region->x_size) +
+		hspslice::memcpyhh(&hspslice::p_data[(row*new_region.x_size)], &hspslice::p_data[((row + (new_region.y_start - old_region->y_start))*old_region->x_size) +
 			(new_region.x_start - old_region->x_start)], new_region.x_size*sizeof(Complex));
 	}
 	hspslice::region = new_region;
