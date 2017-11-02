@@ -177,15 +177,19 @@ rectangle hcube::getSmallestSliceRegion() {
 	return regions[std::distance(std::begin(region_sizes), result)];
 }
 
-void hcube::rescale(std::vector<double> scale_factors) {
+std::vector<double> hcube::rescale(std::vector<double> scale_factors) {
 	/*
 	Rescale slices of a host cube by [scale_factors]. Note that this only makes sense when working on data
 	in the frequency domain.
+
+	Returns inverse scale factors.
 	*/
 	if (hcube::domain == FREQUENCY) {
-		std::vector<long> region_size_x, region_size_y;
+		std::vector<double> old_region_size_x, old_region_size_y, new_region_size_x, new_region_size_y;
 		long x_new_size, y_new_size, x_start, y_start;
 		for (int i = 0; i < hcube::slices.size(); i++) {
+			old_region_size_x.push_back((double)hcube::slices[i]->region.x_size);
+			old_region_size_y.push_back((double)hcube::slices[i]->region.y_size);
 			x_new_size = round((double)hcube::slices[i]->region.x_size * scale_factors[i]);
 			y_new_size = round((double)hcube::slices[i]->region.y_size * scale_factors[i]);
 			x_start = hcube::slices[i]->region.x_start + round((hcube::slices[i]->region.x_size - x_new_size) / 2);
@@ -193,20 +197,29 @@ void hcube::rescale(std::vector<double> scale_factors) {
 			rectangle this_region = rectangle(x_start, y_start, x_new_size, y_new_size);
 			if (this_region.x_size < hcube::slices[i]->region.x_size) {
 				hcube::slices[i]->crop(this_region);
-			} else if (this_region.x_size > hcube::slices[i]->region.x_size)  {
+			}
+			else if (this_region.x_size > hcube::slices[i]->region.x_size)  {
 				hcube::slices[i]->grow(this_region);
 			}
-			region_size_x.push_back(this_region.x_size);
-			region_size_y.push_back(this_region.y_size);
+			new_region_size_x.push_back(this_region.x_size);
+			new_region_size_y.push_back(this_region.y_size);
 		}
 
 		// check cube integrity (unless all wavelengths are equal, this should fail!)
-		if (std::equal(region_size_x.begin() + 1, region_size_x.end(), region_size_x.begin()) &&
-			std::equal(region_size_y.begin() + 1, region_size_y.end(), region_size_y.begin())) {
+		if (std::equal(new_region_size_x.begin() + 1, new_region_size_x.end(), new_region_size_x.begin()) &&
+			std::equal(new_region_size_y.begin() + 1, new_region_size_y.end(), new_region_size_y.begin())) {
 			hcube::state = OK;
-		} else {
+		}
+		else {
 			hcube::state = INCONSISTENT;
 		}
+
+		// calculate inverse scale factors
+		std::vector<double> inverse_scale_factors;
+		for (int i = 0; i < old_region_size_x.size(); i++) {
+			inverse_scale_factors.push_back(old_region_size_x[i] / new_region_size_x[i]);
+		}
+		return inverse_scale_factors;
 	} else {
 		throw_error(CCUBE_BAD_DOMAIN);
 	}
@@ -380,15 +393,19 @@ rectangle dcube::getSmallestSliceRegion() {
 	return regions[std::distance(std::begin(region_sizes), result)];
 }
 
-void dcube::rescale(std::vector<double> scale_factors) {
+std::vector<double> dcube::rescale(std::vector<double> scale_factors) {
 	/*
 	Rescale slices of a device cube by [scale_factors]. Note that this only makes sense when working on data 
 	in the frequency domain.
+
+	Returns inverse scale factors.
 	*/
 	if (dcube::domain == FREQUENCY) {
-		std::vector<long> region_size_x, region_size_y;
+		std::vector<double> old_region_size_x, old_region_size_y, new_region_size_x, new_region_size_y;
 		long x_new_size, y_new_size, x_start, y_start;
 		for (int i = 0; i < dcube::slices.size(); i++) {
+			old_region_size_x.push_back((double)dcube::slices[i]->region.x_size); 
+			old_region_size_y.push_back((double)dcube::slices[i]->region.y_size);
 			x_new_size = round((double)dcube::slices[i]->region.x_size * scale_factors[i]);
 			y_new_size = round((double)dcube::slices[i]->region.y_size * scale_factors[i]);
 			x_start = dcube::slices[i]->region.x_start + round((dcube::slices[i]->region.x_size - x_new_size) / 2);
@@ -399,17 +416,24 @@ void dcube::rescale(std::vector<double> scale_factors) {
 			} else if (this_region.x_size > dcube::slices[i]->region.x_size)  {
 				dcube::slices[i]->grow(this_region);
 			}
-			region_size_x.push_back(this_region.x_size);
-			region_size_y.push_back(this_region.y_size);
+			new_region_size_x.push_back(this_region.x_size); 
+			new_region_size_y.push_back(this_region.y_size);
 		}
 
 		// check cube integrity (unless all wavelengths are equal, this should fail!)
-		if (std::equal(region_size_x.begin() + 1, region_size_x.end(), region_size_x.begin()) &&
-			std::equal(region_size_y.begin() + 1, region_size_y.end(), region_size_y.begin())) {
+		if (std::equal(new_region_size_x.begin() + 1, new_region_size_x.end(), new_region_size_x.begin()) &&
+			std::equal(new_region_size_y.begin() + 1, new_region_size_y.end(), new_region_size_y.begin())) {
 			dcube::state = OK;
 		} else {
 			dcube::state = INCONSISTENT;
 		}
+
+		// calculate inverse scale factors
+		std::vector<double> inverse_scale_factors;
+		for (int i = 0; i < old_region_size_x.size(); i++) {
+			inverse_scale_factors.push_back(old_region_size_x[i] / new_region_size_x[i]);
+		}
+		return inverse_scale_factors;
 	} else {
 		throw_error(CCUBE_BAD_DOMAIN);
 	}

@@ -50,7 +50,7 @@ public:
 	std::valarray<double> getDataAsValarray(complex_part);
 	std::valarray<double> getDataAsValarray(complex_part, int);
 	rectangle getSmallestSliceRegion();
-	void rescale(std::vector<double>);
+	std::vector<double> rescale(std::vector<double>);
 	void write(complex_part, std::string, bool);
 	void write(complex_part, std::string, int, bool);
 };
@@ -67,7 +67,7 @@ public:
 	dcube* deepcopy();
 	void fft(bool);
 	rectangle getSmallestSliceRegion();
-	void rescale(std::vector<double>);
+	std::vector<double> rescale(std::vector<double>);
 };
 
 

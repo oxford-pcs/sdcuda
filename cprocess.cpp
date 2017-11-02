@@ -204,7 +204,6 @@ void process::rescaleDatacubeToPreRescaleSizeOnDevice() {
 	if (process::inverse_scale_factors.size() != process::d_datacube->slices.size()) {
 		throw_error(CPROCESS_IRESCALE_PRE_SIZES_NOT_SET);
 	}
-
 	process::d_datacube->rescale(process::inverse_scale_factors);
 	// need to roll phase (spatial translation) for odd sized frames, otherwise there's a 0.5 pixel offset in x and y compared to the even frames after ifft.
 	for (int i = 0; i < process::d_datacube->slices.size(); i++) {
@@ -228,6 +227,7 @@ void process::rescaleDatacubeToPreRescaleSizeOnDevice() {
 			throw_error(CUDA_FAIL_SYNCHRONIZE);
 		}
 	}
+	process::d_datacube->rescale(process::inverse_scale_factors);
 }
 
 void process::makeDatacubeOnHost() {
@@ -241,7 +241,7 @@ std::vector<double> process::rescaleDatacubeToReferenceWavelengthOnDevice(int re
 		pre_rescale_regions.push_back((*it)->region);
 		scale_factors.push_back(reference_wavelength / (double)(*it)->wavelength);
 	}
-	process::d_datacube->rescale(scale_factors);
+	std::vector<double> inverse_scale_factors = process::d_datacube->rescale(scale_factors);
 	// need to roll phase (spatial translation) for odd sized frames, otherwise there's a 0.5 pixel offset in x and y compared to the even frames after ifft.
 	for (int i = 0; i < process::d_datacube->slices.size(); i++) {
 		double2 offset;
@@ -263,10 +263,6 @@ std::vector<double> process::rescaleDatacubeToReferenceWavelengthOnDevice(int re
 		if (cudaThreadSynchronize() != cudaSuccess) {
 			throw_error(CUDA_FAIL_SYNCHRONIZE);
 		}
-	}
-	std::vector<double> inverse_scale_factors;
-	for (int i = 0; i < process::d_datacube->slices.size(); i++) {
-		inverse_scale_factors.push_back((double)pre_rescale_regions[i].x_size / (double)process::d_datacube->slices[i]->region.x_size);
 	}
 	return inverse_scale_factors;
 }

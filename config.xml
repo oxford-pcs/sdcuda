@@ -39,7 +39,7 @@
       <name>D_RESCALE_DATACUBE_TO_REFERENCE_WAVELENGTH</name>
       <param>
         <name>WAVELENGTH</name>
-        <value>2450</value>
+        <value>1450</value>
         <description>wavelength to rescale to (nm)</description>
       </param>
     </stage>
@@ -55,7 +55,7 @@
     <stage>
       <name>D_CROP_TO_SMALLEST_DIMENSION</name>
     </stage>
-    <stage>
+    <!--<stage>
       <name>D_SPAXEL_FIT_POLY_AND_SUBTRACT</name>
       <param>
         <name>POLY_ORDER</name>
@@ -77,7 +77,7 @@
     </stage>
     <stage>
       <name>D_IFFT</name>
-    </stage>
+    </stage>-->
     <stage>
       <name>D_SET_DATA_TO_AMPLITUDE</name>
     </stage>
