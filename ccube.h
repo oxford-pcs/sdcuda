@@ -4,7 +4,8 @@
 #include <vector>
 #include <string>
 
-#include "ccomplex.cuh"
+#include "ccomplex.h"
+#include "cdevice.h"
 #include "cspslice.h"
 #include "regions.h"
 #include "cmemory.h"

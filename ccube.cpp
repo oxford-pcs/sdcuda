@@ -9,7 +9,8 @@
 #include <cufft.h>
 
 #include "cspslice.h"
-#include "ccomplex.cuh"
+#include "ccomplex.h"
+#include "cdevice.h"
 #include "regions.h"
 #include "errors.h"
 

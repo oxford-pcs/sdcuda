@@ -163,7 +163,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CudaCompile Include="ccomplex.cu">
+    <CudaCompile Include="cdevice.cu">
       <FileType>Document</FileType>
     </CudaCompile>
     <CudaCompile Include="cudacalls.cu" />
@@ -174,7 +174,8 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
   <ItemGroup>
     <ClInclude Include="banner.h" />
     <ClInclude Include="cclparser.h" />
-    <ClCompile Include="ccomplex.cuh" />
+    <ClCompile Include="cdevice.h" />
+    <ClInclude Include="ccomplex.h" />
     <ClInclude Include="ccube.h" />
     <ClInclude Include="cudacalls.cuh" />
     <ClInclude Include="cinput.h" />

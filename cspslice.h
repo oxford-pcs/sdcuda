@@ -3,7 +3,8 @@
 #include <vector>
 #include <valarray>
 
-#include "ccomplex.cuh"
+#include "ccomplex.h"
+#include "cdevice.h"
 #include "regions.h"
 #include "cmemory.h"
 

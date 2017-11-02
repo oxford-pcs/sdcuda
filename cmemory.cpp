@@ -4,7 +4,8 @@
 #include <stdio.h>
 #include <valarray>
 
-#include "ccomplex.cuh"
+#include "ccomplex.h"
+#include "cdevice.h"
 #include "errors.h"
 
 using std::valarray;

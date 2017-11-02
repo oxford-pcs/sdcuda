@@ -1,6 +1,7 @@
 #pragma once
 
-#include "ccomplex.cuh"
+#include "ccomplex.h"
+#include "cdevice.h"
 #include "ccube.h"
 
 cudaError cudaSubtractPoly(int, int, Complex**, Complex*, long, int*, long, long);

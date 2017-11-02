@@ -4,6 +4,7 @@ pad.txt
 sdcuda.opensdf
 vc120.pdb
 x64/
+sdcua.sdf
 
 # Prerequisites
 *.d

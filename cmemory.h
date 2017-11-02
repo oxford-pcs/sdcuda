@@ -1,7 +1,5 @@
 #pragma once;
 
-#include "ccomplex.cuh"
-
 template <class T>
 class memory {
 public:
