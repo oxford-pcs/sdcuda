@@ -49,7 +49,6 @@ void process::fitPolyToSpaxelAndSubtractOnDevice(int poly_order) {
 		dmemory<Complex*>::memcpyhd(&p_data_slices[i], &process::d_datacube->slices[i]->p_data, sizeof(Complex*));
 	}
 
-
 	Complex* p_data_spaxels;
 	p_data_spaxels = dmemory<Complex>::malloc(process::d_datacube->slices[0]->getNumberOfElements()*
 		process::d_datacube->slices.size()*sizeof(Complex), true);
@@ -204,7 +203,7 @@ void process::rescaleDatacubeToPreRescaleSizeOnDevice() {
 	if (process::inverse_scale_factors.size() != process::d_datacube->slices.size()) {
 		throw_error(CPROCESS_IRESCALE_PRE_SIZES_NOT_SET);
 	}
-	process::d_datacube->rescale(process::inverse_scale_factors);
+
 	// need to roll phase (spatial translation) for odd sized frames, otherwise there's a 0.5 pixel offset in x and y compared to the even frames after ifft.
 	for (int i = 0; i < process::d_datacube->slices.size(); i++) {
 		double2 offset;

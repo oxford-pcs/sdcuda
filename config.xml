@@ -3,7 +3,7 @@
   <host>
     <param>
       <name>nCPUCORES</name>
-      <value>3</value>
+      <value>1</value>
       <description>number of CPU cores</description>
     </param>
   </host>
@@ -62,7 +62,7 @@
         <value>4</value>
         <description>polynomial order of fit</description>
       </param>
-    </stage>
+    </stage>-->
     <stage>
       <name>D_FFT</name>
     </stage>
@@ -77,7 +77,7 @@
     </stage>
     <stage>
       <name>D_IFFT</name>
-    </stage>-->
+    </stage>
     <stage>
       <name>D_SET_DATA_TO_AMPLITUDE</name>
     </stage>

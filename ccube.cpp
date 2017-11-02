@@ -198,8 +198,7 @@ std::vector<double> hcube::rescale(std::vector<double> scale_factors) {
 			rectangle this_region = rectangle(x_start, y_start, x_new_size, y_new_size);
 			if (this_region.x_size < hcube::slices[i]->region.x_size) {
 				hcube::slices[i]->crop(this_region);
-			}
-			else if (this_region.x_size > hcube::slices[i]->region.x_size)  {
+			} else if (this_region.x_size > hcube::slices[i]->region.x_size)  {
 				hcube::slices[i]->grow(this_region);
 			}
 			new_region_size_x.push_back(this_region.x_size);
@@ -221,7 +220,8 @@ std::vector<double> hcube::rescale(std::vector<double> scale_factors) {
 			inverse_scale_factors.push_back(old_region_size_x[i] / new_region_size_x[i]);
 		}
 		return inverse_scale_factors;
-	} else {
+	}
+	else {
 		throw_error(CCUBE_BAD_DOMAIN);
 	}
 }
