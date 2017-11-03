@@ -38,8 +38,13 @@ void process::cropToEvenSquareOnHost() {
 	process::h_datacube->crop(rectangle(0, 0, min_dim, min_dim));
 }
 
-void process::cropToSmallestDimensionOnDevice() {
+std::vector<rectangle> process::cropDatacubeToSmallestDimensionSliceOnDevice() {
+	std::vector<rectangle> last_regions;
+	for (std::vector<dspslice*>::iterator it = process::d_datacube->slices.begin(); it != process::d_datacube->slices.end(); ++it) {
+		last_regions.push_back((*it)->region);
+	}
 	d_datacube->crop(d_datacube->getSmallestSliceRegion());
+	return last_regions;
 }
 
 void process::fitPolyToSpaxelAndSubtractOnDevice(int poly_order) {
@@ -171,6 +176,15 @@ void process::fftshiftOnDevice() {
 	process::d_datacube = d_datacube_tmp;
 }
 
+std::vector<rectangle> process::growDatacubeToLargestDimensionSliceOnDevice() {
+	std::vector<rectangle> last_regions;
+	for (std::vector<dspslice*>::iterator it = process::d_datacube->slices.begin(); it != process::d_datacube->slices.end(); ++it) {
+		last_regions.push_back((*it)->region);
+	}
+	d_datacube->grow(d_datacube->getLargestSliceRegion());
+	return last_regions;
+}
+
 void process::iFftOnDevice() {
 	process::d_datacube->fft(true);
 	if (cudaThreadSynchronize() != cudaSuccess) {
@@ -198,19 +212,42 @@ void process::iFftshiftOnDevice() {
 	process::d_datacube = d_datacube_tmp;
 }
 
-void process::rescaleDatacubeToPreRescaleSizeOnDevice() {
-	// can't use the reverse scale factor as the round function means that we wouldn't necessarily end up with the correct rescaled size
-	if (process::inverse_scale_factors.size() != process::d_datacube->slices.size()) {
-		throw_error(CPROCESS_IRESCALE_PRE_SIZES_NOT_SET);
+void process::revertLastCrop() {
+	if (process::last_crop_regions.size() != process::d_datacube->slices.size()) {
+		throw_error(CPROCESS_REVERT_CROP_REGIONS_NOT_SET);
+	}
+	process::d_datacube->grow(process::last_crop_regions);
+
+	// empty last crop factors
+	process::last_crop_regions.clear();
+}
+
+void process::revertLastGrow() {
+	if (process::last_grow_regions.size() != process::d_datacube->slices.size()) {
+		throw_error(CPROCESS_REVERT_GROW_REGIONS_NOT_SET);
+	}
+	process::d_datacube->crop(process::last_grow_regions);
+
+	// empty last grow factors
+	process::last_grow_regions.clear();
+}
+
+void process::revertLastRescale() {
+	if (process::last_rescale_regions.size() != process::d_datacube->slices.size()) {
+		throw_error(CPROCESS_REVERT_RESCALE_REGIONS_NOT_SET);
+	}
+	std::vector<double> inverse_scale_factors;
+	for (int i = 0; i < process::d_datacube->slices.size(); i++) {
+		inverse_scale_factors[i] = (double)d_datacube->slices[i]->region.x_size / (double)process::last_rescale_regions[i].x_size;
 	}
 
 	// need to roll phase (spatial translation) for odd sized frames, otherwise there's a 0.5 pixel offset in x and y compared to the even frames after ifft.
 	for (int i = 0; i < process::d_datacube->slices.size(); i++) {
 		double2 offset;
-		if (process::inverse_scale_factors[i] < 1 && process::d_datacube->slices[i]->region.x_size % 2 != 0) {
+		if (inverse_scale_factors[i] < 1 && process::d_datacube->slices[i]->region.x_size % 2 != 0) {
 			offset.x = 0.5;
 			offset.y = 0.5;
-		} else if (process::inverse_scale_factors[i] > 1 && process::d_datacube->slices[i]->region.x_size % 2 != 0) {
+		} else if (inverse_scale_factors[i] > 1 && process::d_datacube->slices[i]->region.x_size % 2 != 0) {
 			offset.x = -0.5;
 			offset.y = -0.5;
 		} else {
@@ -226,21 +263,24 @@ void process::rescaleDatacubeToPreRescaleSizeOnDevice() {
 			throw_error(CUDA_FAIL_SYNCHRONIZE);
 		}
 	}
-	process::d_datacube->rescale(process::inverse_scale_factors);
+	process::d_datacube->rescale(inverse_scale_factors);
+
+	// empty last rescale factors
+	process::last_rescale_regions.clear();
 }
 
 void process::makeDatacubeOnHost() {
 	process::h_datacube = process::iinput->makeCube(process::exp_idx, true);
 }
 
-std::vector<double> process::rescaleDatacubeToReferenceWavelengthOnDevice(int reference_wavelength) {
+std::vector<rectangle> process::rescaleDatacubeToReferenceWavelengthOnDevice(int reference_wavelength) {
 	std::vector<double> scale_factors;
-	std::vector<rectangle> pre_rescale_regions;
+	std::vector<rectangle> last_regions;
 	for (std::vector<dspslice*>::iterator it = process::d_datacube->slices.begin(); it != process::d_datacube->slices.end(); ++it) {
-		pre_rescale_regions.push_back((*it)->region);
+		last_regions.push_back((*it)->region);
 		scale_factors.push_back(reference_wavelength / (double)(*it)->wavelength);
 	}
-	std::vector<double> inverse_scale_factors = process::d_datacube->rescale(scale_factors);
+	process::d_datacube->rescale(scale_factors);
 	// need to roll phase (spatial translation) for odd sized frames, otherwise there's a 0.5 pixel offset in x and y compared to the even frames after ifft.
 	for (int i = 0; i < process::d_datacube->slices.size(); i++) {
 		double2 offset;
@@ -263,7 +303,7 @@ std::vector<double> process::rescaleDatacubeToReferenceWavelengthOnDevice(int re
 			throw_error(CUDA_FAIL_SYNCHRONIZE);
 		}
 	}
-	return inverse_scale_factors;
+	return last_regions;
 }
 
 void process::setDataToAmplitude() {
@@ -308,10 +348,10 @@ void process::step(int stage, int nstages) {
 		to_stdout(process::message_buffer);
 		process::copyHostDatacubeToDevice();
 		break;
-	case D_CROP_TO_SMALLEST_DIMENSION:
-		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tcropping datacube to smallest dimension on device", process::exp_idx, stage, nstages);
+	case D_CROP_DATACUBE_TO_SMALLEST_DIMENSION_SLICE:
+		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tcropping datacube to smallest dimension slice on device", process::exp_idx, stage, nstages);
 		to_stdout(process::message_buffer);
-		process::cropToSmallestDimensionOnDevice();
+		process::last_crop_regions = process::cropDatacubeToSmallestDimensionSliceOnDevice();
 		break;
 	case D_SPAXEL_FIT_POLY_AND_SUBTRACT:
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tfitting polynomial to spaxels and subtracting on device", process::exp_idx, stage, nstages);
@@ -329,6 +369,11 @@ void process::step(int stage, int nstages) {
 		to_stdout(process::message_buffer);
 		process::fftshiftOnDevice();
 		break;
+	case D_GROW_DATACUBE_TO_LARGEST_DIMENSION_SLICE:
+		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tgrowing datacube to largest dimension slice on device", process::exp_idx, stage, nstages);
+		to_stdout(process::message_buffer);
+		process::last_grow_regions = process::growDatacubeToLargestDimensionSliceOnDevice();
+		break;
 	case D_IFFT:
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tiffting datacube on device", process::exp_idx, stage, nstages);
 		to_stdout(process::message_buffer);
@@ -339,15 +384,25 @@ void process::step(int stage, int nstages) {
 		to_stdout(process::message_buffer);
 		process::iFftshiftOnDevice();
 		break;
-	case D_RESCALE_DATACUBE_TO_PRE_RESCALE_SIZE:
-		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tscaling datacube to pre-rescale size on device", process::exp_idx, stage, nstages);
+	case D_REVERT_LAST_CROP:
+		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\treverting last crop on device", process::exp_idx, stage, nstages);
 		to_stdout(process::message_buffer);
-		process::rescaleDatacubeToPreRescaleSizeOnDevice();
+		process::revertLastCrop();
+		break;
+	case D_REVERT_LAST_GROW:
+		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\treverting last grow on device", process::exp_idx, stage, nstages);
+		to_stdout(process::message_buffer);
+		process::revertLastGrow();
+		break;
+	case D_REVERT_LAST_RESCALE:
+		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\treverting last rescale on device", process::exp_idx, stage, nstages);
+		to_stdout(process::message_buffer);
+		process::revertLastRescale();
 		break;
 	case D_RESCALE_DATACUBE_TO_REFERENCE_WAVELENGTH:
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tscaling datacube to reference wavelength on device", process::exp_idx, stage, nstages);
 		to_stdout(process::message_buffer);
-		process::inverse_scale_factors = process::rescaleDatacubeToReferenceWavelengthOnDevice(
+		process::last_grow_regions = process::rescaleDatacubeToReferenceWavelengthOnDevice(
 			stoi(process::iinput->stage_parameters[D_RESCALE_DATACUBE_TO_REFERENCE_WAVELENGTH]["WAVELENGTH"]));
 		break;
 	case D_SET_DATA_TO_AMPLITUDE: 

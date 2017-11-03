@@ -10,12 +10,15 @@
 enum process_stages {
 	COPY_DEVICE_DATACUBE_TO_HOST,
 	COPY_HOST_DATACUBE_TO_DEVICE,
-	D_CROP_TO_SMALLEST_DIMENSION,
+	D_CROP_DATACUBE_TO_SMALLEST_DIMENSION_SLICE,
 	D_FFT,
 	D_FFTSHIFT,
+	D_GROW_DATACUBE_TO_LARGEST_DIMENSION_SLICE,
 	D_IFFT,
 	D_IFFTSHIFT,
-	D_RESCALE_DATACUBE_TO_PRE_RESCALE_SIZE,
+	D_REVERT_LAST_CROP,
+	D_REVERT_LAST_GROW,
+	D_REVERT_LAST_RESCALE,
 	D_RESCALE_DATACUBE_TO_REFERENCE_WAVELENGTH,
 	D_SPAXEL_FIT_POLY_AND_SUBTRACT,
 	D_SET_DATA_TO_AMPLITUDE,
@@ -36,22 +39,27 @@ public:
 	int exp_idx;
 	char message_buffer[255];
 	std::list<process_stages> stages;
-	std::vector<double> inverse_scale_factors;
+	std::vector<rectangle> last_crop_regions;
+	std::vector<rectangle> last_grow_regions;
+	std::vector<rectangle> last_rescale_regions;
 private:
 	void copyDeviceDatacubeToHost();
 	void copyHostDatacubeToDevice();
 	void correctOffsetOnDevice();
 	void cropToEvenSquareOnHost();
-	void cropToSmallestDimensionOnDevice();
+	std::vector<rectangle> cropDatacubeToSmallestDimensionSliceOnDevice();
 	void fitPolyToSpaxelAndSubtractOnDevice(int);
 	void fftOnDevice();
 	void fftshiftOnDevice();
+	std::vector<rectangle> growDatacubeToLargestDimensionSliceOnDevice();
 	void iFftOnDevice();
 	void iFftshiftOnDevice();
 	void makeDatacubeOnHost();
 	void normaliseOnDevice();
-	void rescaleDatacubeToPreRescaleSizeOnDevice();
-	std::vector<double> rescaleDatacubeToReferenceWavelengthOnDevice(int);
+	std::vector<rectangle> rescaleDatacubeToReferenceWavelengthOnDevice(int);
+	void revertLastCrop();
+	void revertLastGrow();
+	void revertLastRescale();
 	void setDataToAmplitude();
 	void step(int, int);
 };

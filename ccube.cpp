@@ -167,6 +167,17 @@ std::valarray<double> hcube::getDataAsValarray(complex_part part, int slice_inde
 	return data;
 }
 
+rectangle hcube::getLargestSliceRegion() {
+	std::vector<rectangle> regions;
+	std::vector<long> region_sizes;
+	for (std::vector<hspslice*>::iterator it = hcube::slices.begin(); it != hcube::slices.end(); ++it) {
+		regions.push_back((*it)->region);
+		region_sizes.push_back((*it)->region.x_size*(*it)->region.y_size);
+	}
+	std::vector<long>::iterator result = std::max_element(std::begin(region_sizes), std::end(region_sizes));
+	return regions[std::distance(std::begin(region_sizes), result)];
+}
+
 rectangle hcube::getSmallestSliceRegion() {
 	std::vector<rectangle> regions;
 	std::vector<long> region_sizes;
@@ -178,12 +189,41 @@ rectangle hcube::getSmallestSliceRegion() {
 	return regions[std::distance(std::begin(region_sizes), result)];
 }
 
-std::vector<double> hcube::rescale(std::vector<double> scale_factors) {
+void hcube::grow(rectangle region) {
+	/*
+	Grow all slices of a host cube by the region [region].
+	*/
+	for (std::vector<hspslice*>::iterator it = hcube::slices.begin(); it != hcube::slices.end(); ++it) {
+		(*it)->grow(region);
+	}
+	hcube::state = OK;
+}
+
+void hcube::grow(std::vector<rectangle> regions) {
+	/*
+	Grow each slice of a host cube by the corresponding region in vector [regions].
+	*/
+	std::vector<long> region_size_x, region_size_y;
+	for (std::vector<hspslice*>::iterator it = hcube::slices.begin(); it != hcube::slices.end(); ++it) {
+		(*it)->grow(regions[std::distance(hcube::slices.begin(), it)]);
+		region_size_x.push_back(regions[std::distance(hcube::slices.begin(), it)].x_size);
+		region_size_y.push_back(regions[std::distance(hcube::slices.begin(), it)].y_size);
+	}
+
+	// check cube integrity
+	if (std::equal(region_size_x.begin() + 1, region_size_x.end(), region_size_x.begin()) &&
+		std::equal(region_size_y.begin() + 1, region_size_y.end(), region_size_y.begin())) {
+		hcube::state = OK;
+	}
+	else {
+		hcube::state = INCONSISTENT;
+	}
+}
+
+void hcube::rescale(std::vector<double> scale_factors) {
 	/*
 	Rescale slices of a host cube by [scale_factors]. Note that this only makes sense when working on data
 	in the frequency domain.
-
-	Returns inverse scale factors.
 	*/
 	if (hcube::domain == FREQUENCY) {
 		std::vector<double> old_region_size_x, old_region_size_y, new_region_size_x, new_region_size_y;
@@ -213,13 +253,6 @@ std::vector<double> hcube::rescale(std::vector<double> scale_factors) {
 		else {
 			hcube::state = INCONSISTENT;
 		}
-
-		// calculate inverse scale factors
-		std::vector<double> inverse_scale_factors;
-		for (int i = 0; i < old_region_size_x.size(); i++) {
-			inverse_scale_factors.push_back(old_region_size_x[i] / new_region_size_x[i]);
-		}
-		return inverse_scale_factors;
 	}
 	else {
 		throw_error(CCUBE_BAD_DOMAIN);
@@ -383,6 +416,17 @@ void dcube::fft(bool inverse) {
 	}
 }
 
+rectangle dcube::getLargestSliceRegion() {
+	std::vector<rectangle> regions;
+	std::vector<long> region_sizes;
+	for (std::vector<dspslice*>::iterator it = dcube::slices.begin(); it != dcube::slices.end(); ++it) {
+		regions.push_back((*it)->region);
+		region_sizes.push_back((*it)->region.x_size*(*it)->region.y_size);
+	}
+	std::vector<long>::iterator result = std::max_element(std::begin(region_sizes), std::end(region_sizes));
+	return regions[std::distance(std::begin(region_sizes), result)];
+}
+
 rectangle dcube::getSmallestSliceRegion() {
 	std::vector<rectangle> regions;
 	std::vector<long> region_sizes;
@@ -394,12 +438,41 @@ rectangle dcube::getSmallestSliceRegion() {
 	return regions[std::distance(std::begin(region_sizes), result)];
 }
 
-std::vector<double> dcube::rescale(std::vector<double> scale_factors) {
+void dcube::grow(rectangle region) {
+	/*
+	Grow all slices of a device cube by the region [region].
+	*/
+	for (std::vector<dspslice*>::iterator it = dcube::slices.begin(); it != dcube::slices.end(); ++it) {
+		(*it)->grow(region);
+	}
+	dcube::state = OK;
+}
+
+void dcube::grow(std::vector<rectangle> regions) {
+	/*
+	Grow each slice of a device cube by the corresponding region in vector [regions].
+	*/
+	std::vector<long> region_size_x, region_size_y;
+	for (std::vector<dspslice*>::iterator it = dcube::slices.begin(); it != dcube::slices.end(); ++it) {
+		(*it)->grow(regions[std::distance(dcube::slices.begin(), it)]);
+		region_size_x.push_back(regions[std::distance(dcube::slices.begin(), it)].x_size);
+		region_size_y.push_back(regions[std::distance(dcube::slices.begin(), it)].y_size);
+	}
+
+	// check cube integrity
+	if (std::equal(region_size_x.begin() + 1, region_size_x.end(), region_size_x.begin()) &&
+		std::equal(region_size_y.begin() + 1, region_size_y.end(), region_size_y.begin())) {
+		dcube::state = OK;
+	}
+	else {
+		dcube::state = INCONSISTENT;
+	}
+}
+
+void dcube::rescale(std::vector<double> scale_factors) {
 	/*
 	Rescale slices of a device cube by [scale_factors]. Note that this only makes sense when working on data 
 	in the frequency domain.
-
-	Returns inverse scale factors.
 	*/
 	if (dcube::domain == FREQUENCY) {
 		std::vector<double> old_region_size_x, old_region_size_y, new_region_size_x, new_region_size_y;
@@ -428,13 +501,6 @@ std::vector<double> dcube::rescale(std::vector<double> scale_factors) {
 		} else {
 			dcube::state = INCONSISTENT;
 		}
-
-		// calculate inverse scale factors
-		std::vector<double> inverse_scale_factors;
-		for (int i = 0; i < old_region_size_x.size(); i++) {
-			inverse_scale_factors.push_back(old_region_size_x[i] / new_region_size_x[i]);
-		}
-		return inverse_scale_factors;
 	} else {
 		throw_error(CCUBE_BAD_DOMAIN);
 	}

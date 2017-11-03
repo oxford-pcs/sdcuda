@@ -50,8 +50,11 @@ public:
 	hcube* deepcopy();
 	std::valarray<double> getDataAsValarray(complex_part);
 	std::valarray<double> getDataAsValarray(complex_part, int);
+	rectangle getLargestSliceRegion();
 	rectangle getSmallestSliceRegion();
-	std::vector<double> rescale(std::vector<double>);
+	void grow(rectangle);
+	void grow(std::vector<rectangle>);
+	void rescale(std::vector<double>);
 	void write(complex_part, std::string, bool);
 	void write(complex_part, std::string, int, bool);
 };
@@ -67,8 +70,11 @@ public:
 	void crop(std::vector<rectangle>);
 	dcube* deepcopy();
 	void fft(bool);
+	rectangle getLargestSliceRegion();
 	rectangle getSmallestSliceRegion();
-	std::vector<double> rescale(std::vector<double>);
+	void grow(rectangle);
+	void grow(std::vector<rectangle>);
+	void rescale(std::vector<double>);
 };
 
 
