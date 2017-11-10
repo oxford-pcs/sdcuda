@@ -5,7 +5,7 @@
 #include <string>
 
 #include "ccomplex.h"
-#include "cdevice.h"
+#include "cdevice.cuh"
 #include "cspslice.h"
 #include "regions.h"
 #include "cmemory.h"
@@ -27,11 +27,15 @@ public:
 	ccube_domains domain;
 	ccube_states state = OK;	// this keeps track of whether the cube has consistently sized slices.
 protected:
+	virtual void clear() {};
 	virtual void crop(rectangle) {}
 	virtual void crop(std::vector<rectangle>) {};
 	virtual cube* deepcopy() { return NULL; };
-	virtual void clear() {}
+	virtual rectangle getLargestSliceRegion() { return rectangle(); };
+	virtual int getNumberOfSpaxels() { return 0; }
 	virtual rectangle getSmallestSliceRegion() { return rectangle(); };
+	void grow(rectangle) {};
+	void grow(std::vector<rectangle>) {};
 	virtual void rescale(float) {};
 };
 
@@ -51,6 +55,7 @@ public:
 	std::valarray<double> getDataAsValarray(complex_part);
 	std::valarray<double> getDataAsValarray(complex_part, int);
 	rectangle getLargestSliceRegion();
+	int getNumberOfSpaxels();
 	rectangle getSmallestSliceRegion();
 	void grow(rectangle);
 	void grow(std::vector<rectangle>);
@@ -71,6 +76,7 @@ public:
 	dcube* deepcopy();
 	void fft(bool);
 	rectangle getLargestSliceRegion();
+	int getNumberOfSpaxels();
 	rectangle getSmallestSliceRegion();
 	void grow(rectangle);
 	void grow(std::vector<rectangle>);

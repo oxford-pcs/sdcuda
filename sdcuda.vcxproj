@@ -174,7 +174,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
   <ItemGroup>
     <ClInclude Include="banner.h" />
     <ClInclude Include="cclparser.h" />
-    <ClCompile Include="cdevice.h" />
+    <ClCompile Include="cdevice.cuh" />
     <ClInclude Include="ccomplex.h" />
     <ClInclude Include="ccube.h" />
     <ClInclude Include="cudacalls.cuh" />

@@ -10,7 +10,7 @@
 
 #include "cspslice.h"
 #include "ccomplex.h"
-#include "cdevice.h"
+#include "cdevice.cuh"
 #include "regions.h"
 #include "errors.h"
 
@@ -176,6 +176,14 @@ rectangle hcube::getLargestSliceRegion() {
 	}
 	std::vector<long>::iterator result = std::max_element(std::begin(region_sizes), std::end(region_sizes));
 	return regions[std::distance(std::begin(region_sizes), result)];
+}
+
+int hcube::getNumberOfSpaxels() {
+	int n_spaxels = 0;
+	for (std::vector<hspslice*>::iterator it = hcube::slices.begin(); it != hcube::slices.end(); ++it) {
+		n_spaxels += (*it)->getNumberOfElements();
+	}
+	return n_spaxels;
 }
 
 rectangle hcube::getSmallestSliceRegion() {
@@ -425,6 +433,14 @@ rectangle dcube::getLargestSliceRegion() {
 	}
 	std::vector<long>::iterator result = std::max_element(std::begin(region_sizes), std::end(region_sizes));
 	return regions[std::distance(std::begin(region_sizes), result)];
+}
+
+int dcube::getNumberOfSpaxels() {
+	int n_spaxels = 0;
+	for (std::vector<dspslice*>::iterator it = dcube::slices.begin(); it != dcube::slices.end(); ++it) {
+		n_spaxels += (*it)->getNumberOfElements();
+	}
+	return n_spaxels;
 }
 
 rectangle dcube::getSmallestSliceRegion() {

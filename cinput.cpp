@@ -118,9 +118,22 @@ void input::processConfigFile(string filename, bool verbose) {
 				}
 				this_stage_params[param_name] = param_value;
 			}
-			input::stage_parameters[process_stages_mapping.at(stage_name)] = this_stage_params;
+			try {
+				input::stage_parameters[process_stages_mapping.at(stage_name)] = this_stage_params;
+			} catch (const std::exception& e) {
+				if (strcmp("invalid map<K, T> key", (&e)->what()) == 0) {
+					throw_error(CINPUT_UNRECOGNISED_STAGE);
+				}
+			}
 		}
-		input::stages.push_back(process_stages_mapping.at(stage_name));
+		try {
+			input::stages.push_back(process_stages_mapping.at(stage_name));
+		}
+		catch (const std::exception& e) {
+			if (strcmp("invalid map<K, T> key", (&e)->what()) == 0) {
+				throw_error(CINPUT_UNRECOGNISED_STAGE);
+			}
+		}
 	}
 
 	if (verbose) {

@@ -4,7 +4,7 @@
 #include <valarray>
 
 #include "ccomplex.h"
-#include "cdevice.h"
+#include "cdevice.cuh"
 #include "regions.h"
 #include "cmemory.h"
 

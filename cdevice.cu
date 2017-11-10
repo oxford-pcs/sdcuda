@@ -1,4 +1,4 @@
-#include "cdevice.h"
+#include "cdevice.cuh"
 
 #include <cuComplex.h>
 #include <math.h>
@@ -8,8 +8,6 @@
 
 #include "ccube.h"
 #include "ccomplex.h"
-
-// DEVICE FUNCTIONS
 
 __device__ __host__ Complex cAdd(Complex a, Complex b) {
 	/*
@@ -73,6 +71,16 @@ __device__ __host__ Complex cSub(Complex a, Complex b) {
 	return c;
 }
 
+__device__ __host__ void cCompareArray(int** a, int* b, long index, long spaxel_idx, long n_slices) {
+	for (int i = 0; i < n_slices; i++) {
+		if (a[spaxel_idx][i] != a[index][i]) {
+			b[spaxel_idx] = 0;
+			return;
+		}
+	}
+	b[spaxel_idx] = 1;
+}
+
 __device__ __host__ double cGetAmplitude(Complex a) {
 	/*
 	Get the amplitude of the complex number [a].
@@ -91,7 +99,7 @@ __device__ __host__ double cGetPhase(Complex a) {
 
 __device__ __host__ void cGetSpaxelData(Complex** a, Complex* b, long spaxel_idx, long n_slices) {
 	for (int i = 0; i < n_slices; i++) {
-		b[i + (spaxel_idx*n_slices)] = a[i][spaxel_idx];
+		b[i] = a[i][spaxel_idx];
 	}
 }
 
@@ -137,6 +145,16 @@ __device__ __host__ quadrant cGet2DQuadrantFrom1DIndex(long index, long dim1, lo
 	}
 }
 
+__device__ __host__ void cMakeBitmask(Complex** a, int* b, long spaxel_idx, long n_slices) {
+	for (int i = 0; i < n_slices; i++) {
+		if (a[spaxel_idx][i].x > 0.) {
+			b[i] = 1;
+		} else {
+			b[i] = 0;
+		}
+	}
+}
+
 __device__ __host__ void cPolyValSub(Complex* in, Complex* coeffs, long n_coeffs, long x) {
 	double c = 0.;
 	for (int i = 0; i < n_coeffs; i++) {
@@ -155,7 +173,6 @@ __device__ __host__ Complex cTranslate(Complex a, long dim1, long dim2, long2 po
 	return cMultiply(a, cExp(b));
 }
 
-// GLOBAL FUNCTIONS
 
 __global__ void cAdd2D(Complex* a, Complex* b, long size) {
 	/*
@@ -171,7 +188,7 @@ __global__ void cAdd2D(Complex* a, Complex* b, long size) {
 	}
 }
 
-__global__ void cGetSpaxelData2D(Complex** a, Complex *b, long n_slices, long n_spaxels) {
+__global__ void cCompareArray2D(int** a, int *b, long index, long n_slices, long n_spaxels_per_slice) {
 	/*
 	*/
 	const int numThreads = blockDim.x * gridDim.x;
@@ -179,8 +196,21 @@ __global__ void cGetSpaxelData2D(Complex** a, Complex *b, long n_slices, long n_
 
 	// this is required as one thread may need to do multiple 
 	// computations, i.e. if numThreads < size
-	for (int i = threadID; i < n_spaxels; i += numThreads) {
-		cGetSpaxelData(a, b, i, n_slices);
+	for (int i = threadID; i < n_spaxels_per_slice; i += numThreads) {
+		cCompareArray(a, b, index, i, n_slices);
+	}
+}
+
+__global__ void cGetSpaxelData2D(Complex** a, Complex **b, long n_slices, long n_spaxels_per_slice) {
+	/*
+	*/
+	const int numThreads = blockDim.x * gridDim.x;
+	const int threadID = blockIdx.x * blockDim.x + threadIdx.x;
+
+	// this is required as one thread may need to do multiple 
+	// computations, i.e. if numThreads < size
+	for (int i = threadID; i < n_spaxels_per_slice; i += numThreads) {
+		cGetSpaxelData(a, b[i], i, n_slices);
 	}
 }
 
@@ -269,6 +299,19 @@ __global__ void cIFftShift2D(Complex* a, Complex* b, long dim) {
 	}
 }
 
+__global__ void cMakeBitmask2D(Complex** a, int **b, long n_slices, long n_spaxels_per_slice) {
+	/*
+	*/
+	const int numThreads = blockDim.x * gridDim.x;
+	const int threadID = blockIdx.x * blockDim.x + threadIdx.x;
+
+	// this is required as one thread may need to do multiple 
+	// computations, i.e. if numThreads < size
+	for (int i = threadID; i < n_spaxels_per_slice; i += numThreads) {
+		cMakeBitmask(a, b[i], i, n_slices);
+	}
+}
+
 __global__ void cScale2D(Complex *a, double scale, long size) {
 	/*
 	Scale complex array [a] with [size] elements by [scale] pointwise.
@@ -297,7 +340,7 @@ __global__ void cSub2D(Complex* a, Complex* b, long size) {
 	}
 }
 
-__global__ void cSetComplexRealAsAmplitude(Complex *a, long size) {
+__global__ void cSetComplexRealAsAmplitude2D(Complex *a, long size) {
 	/*
 	Set the real component of array [a] with [size] elements to the amplitude and zero the  
 	imaginary part.

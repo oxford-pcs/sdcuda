@@ -59,7 +59,7 @@
     <ClCompile Include="cmemory.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="cdevice.h">
+    <ClCompile Include="cdevice.cuh">
       <Filter>Header</Filter>
     </ClCompile>
   </ItemGroup>

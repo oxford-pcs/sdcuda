@@ -1,13 +1,13 @@
 #include "cudacalls.cuh"
 #include "ccube.h"
 
-cudaError cudaSubtractPoly(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex** in, Complex* coeffs, long n_coeffs, int* wavelengths, long n_slices, long n_spaxels) {
-	cSubtractPoly << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(in, coeffs, n_coeffs, wavelengths, n_slices, n_spaxels);
+cudaError cudaCompareArray2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, int** in, int* out, long index, long n_slices, long n_spaxels_per_slice) {
+	cCompareArray2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(in, out, index, n_slices, n_spaxels_per_slice);
 	return cudaGetLastError();
 }
 
-cudaError cudaGetSpaxelData2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex** in, Complex* out, long n_slices, long n_spaxels) {
-	cGetSpaxelData2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(in, out, n_slices, n_spaxels);
+cudaError cudaGetSpaxelData2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex** in, Complex** out, long n_slices, long n_spaxels_per_slice) {
+	cGetSpaxelData2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(in, out, n_slices, n_spaxels_per_slice);
 	return cudaGetLastError();
 }
 
@@ -21,13 +21,23 @@ cudaError cudaIFftShift2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* in
 	return cudaGetLastError();
 }
 
+cudaError cudaMakeBitmask2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex** in, int** out, long n_slices, long n_spaxels_per_slice) {
+	cMakeBitmask2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(in, out, n_slices, n_spaxels_per_slice);
+	return cudaGetLastError();
+}
+
 cudaError cudaScale2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* data, double constant, long memsize) {
 	cScale2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(data, constant, memsize);
 	return cudaGetLastError();
 }
 
-cudaError cudaSetComplexRealAsAmplitude(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* a, long size) {
-	cSetComplexRealAsAmplitude << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(a, size);
+cudaError cudaSetComplexRealAsAmplitude2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* a, long size) {
+	cSetComplexRealAsAmplitude2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(a, size);
+	return cudaGetLastError();
+}
+
+cudaError cudaSubtractPoly(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex** in, Complex* coeffs, long n_coeffs, int* wavelengths, long n_slices, long n_spaxels) {
+	cSubtractPoly << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(in, coeffs, n_coeffs, wavelengths, n_slices, n_spaxels);
 	return cudaGetLastError();
 }
 

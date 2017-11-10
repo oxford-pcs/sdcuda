@@ -48,96 +48,242 @@ std::vector<rectangle> process::cropDatacubeToSmallestDimensionSliceOnDevice() {
 }
 
 void process::fitPolyToSpaxelAndSubtractOnDevice(int poly_order) {
-	Complex** p_data_slices;	
-	p_data_slices = dmemory<Complex*>::malloc(process::d_datacube->slices.size()*sizeof(Complex*), true);
-	for (int i = 0; i < process::d_datacube->slices.size(); i++) {
-		dmemory<Complex*>::memcpyhd(&p_data_slices[i], &process::d_datacube->slices[i]->p_data, sizeof(Complex*));
+	
+	//TODO: need consistency check for slice dimensions.
+
+	// Initialise CULA
+	culaStatus s;
+	s = culaInitialize();
+	if (s != culaNoError) {
+		throw_error(CULA_INITIALISATION_ERROR);
 	}
 
-	Complex* p_data_spaxels;
-	p_data_spaxels = dmemory<Complex>::malloc(process::d_datacube->slices[0]->getNumberOfElements()*
-		process::d_datacube->slices.size()*sizeof(Complex), true);
+	// Define some useful variables.
+	//
+	int n_slices = process::d_datacube->slices.size();
+	int n_spaxels = process::d_datacube->getNumberOfSpaxels();
+	int n_spaxels_per_slice = n_spaxels / n_slices;
 
+	// Create an array of Complex pointers [p_d_data_slices] on the device with each pointer pointing towards the data
+	// for each slice in the datacube. Note that although the data at datacube->slices[i]->p_data is on the device, 
+	// the pointer itself resides in memory on the host, so we must use a memcpyhd to copy the pointer to the device.
+	//
+	Complex** p_d_data_slices = dmemory<Complex*>::malloc(n_slices*sizeof(Complex*), true);
+	for (int i = 0; i < n_slices; i++) {
+		dmemory<Complex*>::memcpyhd(&p_d_data_slices[i], &process::d_datacube->slices[i]->p_data, sizeof(Complex*));
+	}
+
+	// Create a 2D array [p_d_data_spaxels] of dimensions [n_spaxels][n_slices] to contain the spaxel data. 
+	// We must make the pointer array on the host and then malloc [n_slices] worth of memory on the device 
+	// for each pointer otherwise, as above, we end up trying to access a pointer on the device from the host. 
+	// Once this is done we can then copy the pointer array to device memory.
+	//
+	Complex** p_d_d_data_spaxels;	// array of pointers (ON DEVICE) to spaxel data memory (ON DEVICE)
+	Complex** p_h_d_data_spaxels;	// array of pointers (ON HOST) to spaxel data memory (ON DEVICE)
+
+	p_h_d_data_spaxels = hmemory<Complex*>::malloc(n_spaxels_per_slice*sizeof(Complex*), true);
+	for (int i = 0; i < n_spaxels_per_slice; i++) {
+		p_h_d_data_spaxels[i] = dmemory<Complex>::malloc(n_slices*sizeof(Complex), true);
+	}
+	p_d_d_data_spaxels = dmemory<Complex*>::malloc(n_spaxels_per_slice*sizeof(Complex*), true);
+	memory<Complex*>::memcpyhd(p_d_d_data_spaxels, p_h_d_data_spaxels, n_spaxels_per_slice*sizeof(Complex*));
+
+
+	// Call the CUDA function to populate [p_d_data_spaxels].
+	//
 	if (cudaGetSpaxelData2D(stoi(process::iinput->config_device["nCUDABLOCKS"]),
 		stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]),
-		p_data_slices, p_data_spaxels, process::d_datacube->slices.size(),
-		process::d_datacube->slices[0]->region.x_size*process::d_datacube->slices[0]->region.y_size) != cudaSuccess) {
+		p_d_data_slices, p_d_d_data_spaxels, n_slices, n_spaxels_per_slice) != cudaSuccess) {
 		throw_error(CUDA_FAIL_GET_SPAXEL_DATA_2D);
 	}
 	if (cudaThreadSynchronize() != cudaSuccess) {
 		throw_error(CUDA_FAIL_SYNCHRONIZE);
 	}
 
-	// form A in column-major and copy to device
-	Complex* A;
-	A = hmemory<Complex>::malloc(d_datacube->slices.size()*(poly_order + 1)*sizeof(Complex), true);
-	for (int j = 0; j < poly_order + 1; j++) {
-		for (int i = 0; i < process::d_datacube->slices.size(); i++) {
-			A[i + (j* process::d_datacube->slices.size())].x = pow(process::iinput->wavelengths[i], j);
-			A[i + (j* process::d_datacube->slices.size())].y = 0;
-		}
+	// Create a 2D array [p_d_data_spaxels_bitmask] of dimensions [n_spaxels][n_slices] to contain the 
+	// bit masked spaxel data (i.e. data > 0 == 1). 
+	//
+	int** p_d_d_data_spaxels_bitmask;	// array of pointers (ON DEVICE) to spaxel data bitmask memory (ON DEVICE)
+	int** p_h_d_data_spaxels_bitmask;	// array of pointers (ON HOST) to spaxel data bitmask memory (ON DEVICE)
+
+	p_h_d_data_spaxels_bitmask = hmemory<int*>::malloc(n_spaxels_per_slice*sizeof(int*), true);
+	for (int i = 0; i < n_spaxels_per_slice; i++) {
+		p_h_d_data_spaxels_bitmask[i] = dmemory<int>::malloc(n_slices*sizeof(int), true);
 	}
+	p_d_d_data_spaxels_bitmask = dmemory<int*>::malloc(n_spaxels_per_slice*sizeof(int*), true);
+	memory<int*>::memcpyhd(p_d_d_data_spaxels_bitmask, p_h_d_data_spaxels_bitmask, n_spaxels_per_slice*sizeof(int*));
 
-	Complex* d_A;
-	d_A = dmemory<Complex>::malloc(process::d_datacube->slices.size()*(poly_order + 1)*sizeof(Complex), true);
-	dmemory<Complex>::memcpyhd(d_A, A, process::d_datacube->slices.size()*(poly_order + 1)*sizeof(Complex));
-
-	// LSQ
-	Complex* p_data_spaxel_coeffs;
-	Complex* p_spaxel;
-	Complex* this_d_A;
-	p_spaxel = dmemory<Complex>::malloc(process::d_datacube->slices.size()*sizeof(Complex), true);
-	culaStatus s;
-	s = culaInitialize();
-	if (s != culaNoError) {
-	} else {
-		p_data_spaxel_coeffs = dmemory<Complex>::malloc(process::d_datacube->slices[0]->getNumberOfElements()*(poly_order + 1)*sizeof(Complex), true);
-		for (int i = 0; i < process::d_datacube->slices[0]->getNumberOfElements(); i++) {
-			dmemory<Complex>::memcpydd(p_spaxel, &p_data_spaxels[i*process::d_datacube->slices.size()],
-				process::d_datacube->slices.size()*sizeof(Complex));
-
-	
-			this_d_A = dmemory<Complex>::malloc(process::d_datacube->slices.size()*(poly_order + 1)*sizeof(Complex), true);
-			dmemory<Complex>::memcpydd(this_d_A, d_A, process::d_datacube->slices.size()*(poly_order + 1)*sizeof(Complex));
-
-			s = culaDeviceZgels('N', process::d_datacube->slices.size(), (poly_order + 1), 1, reinterpret_cast<culaDeviceDoubleComplex*>(this_d_A),
-				process::d_datacube->slices.size(), reinterpret_cast<culaDeviceDoubleComplex*>(p_spaxel),
-				process::d_datacube->slices.size());
-
-			dmemory<Complex>::memcpydd(&p_data_spaxel_coeffs[i*(poly_order + 1)], p_spaxel, (poly_order + 1)*sizeof(Complex));
-
-			if (s != culaNoError) {
-			} else {
-
-			}
-		}
+	// Call the CUDA function to populate [p_d_data_spaxels_bitmask].
+	//
+	if (cudaMakeBitmask2D(stoi(process::iinput->config_device["nCUDABLOCKS"]),
+		stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]),
+		p_d_d_data_spaxels, p_d_d_data_spaxels_bitmask, n_slices, n_spaxels_per_slice) != cudaSuccess) {
+		throw_error(CUDA_FAIL_MAKE_BITMASK_2D);
 	}
-
-	Complex* p_h_data_spaxel_coeffs = hmemory<Complex>::malloc(process::d_datacube->slices[0]->getNumberOfElements()*(poly_order + 1)*sizeof(Complex), true);
-	dmemory<Complex>::memcpydh(p_h_data_spaxel_coeffs, p_data_spaxel_coeffs, 
-		process::d_datacube->slices[0]->getNumberOfElements()*(poly_order + 1)*sizeof(Complex));
-
-
-	// Evaluate polynomial and subtract
-	int* wavelengths;
-	wavelengths = dmemory<int>::malloc(process::iinput->wavelengths.size()*sizeof(int), true);
-	dmemory<int>::memcpyhd(wavelengths, &process::iinput->wavelengths[0], process::iinput->wavelengths.size()*sizeof(int));
-	cudaSubtractPoly(stoi(process::iinput->config_device["nCUDABLOCKS"]), stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]),
-		p_data_slices, p_data_spaxel_coeffs, poly_order + 1, wavelengths, process::d_datacube->slices.size(),
-		process::d_datacube->slices[0]->getNumberOfElements());
 	if (cudaThreadSynchronize() != cudaSuccess) {
 		throw_error(CUDA_FAIL_SYNCHRONIZE);
 	}
 
+	// LEAST SQUARES
+	// 
+	// We need to form the matrices required for least squares, i.e. minimising | Ax - B |, where:
+	// 
+	// A = [ 1 x x^2 .. x^n ] , x = [ a(0) ] and B = [ y0 ] 
+	//     [ 1 x x^2 .. x^n ]       [ a(1) ]         [ y1 ]
+	//     [ . . .   .. .   ]       [ a(n) ]         [ .  ]
+    //     [ . . .   .. .   ]                        [ .  ]
+	//
+	// i.e. A is an (n+1) X m matrix, where m is the number of data points and n is the polynomial order, 
+	//      x is a nrhs X (n+1) matrix, and 
+	//      B is a nrhs X m matrix.
+	//
+	// If we were only solving for a single series of data points, nrhs would be 1. Solving for multiple 
+	// series at the same time can be done by populating columns in the x and B arrays. Note that the CULA 
+	// routines expect A and B to be represented in column-major format.
+	//
+	// A caveat to solving multiple series simultaneously is that we must "batch" spaxels with the same 
+	// matrix A (i.e. they have data points populated at the same wavelengths).
+	// 
+    // To do this, we consider each spaxel in turn and compare it to the others using the bitmask. If we 
+	// find any the same, we batch the spaxels together and do our LSQ calculation with the nhrs = number 
+	// of similar bitmasks found. This significantly decreases the overhead compared to calculating each 
+	// spaxel separately.
+	//
+	Complex* p_spaxel_poly_coeffs = dmemory<Complex>::malloc(n_spaxels_per_slice*(poly_order + 1)*sizeof(Complex), true);
+	std::vector<bool> processed_spaxels(n_spaxels_per_slice, false);	// keep track of processed spaxels
+	for (int i = 0; i < n_spaxels_per_slice; i++) {
+
+		// Check this spaxel hasn't been processed already.
+		//
+		if (processed_spaxels[i] == true) {
+			continue;
+		}
+
+		// Call the CUDA function to compare the current spaxel's bitmask to the others, this 
+		// creates an array [d_truth] containing the indexes of the spaxels that have evaluated 
+		// as true to the comparison.
+		//
+		int* d_truth_bitmask = dmemory<int>::malloc(n_spaxels_per_slice*sizeof(int), true);
+		if (cudaCompareArray2D(stoi(process::iinput->config_device["nCUDABLOCKS"]),
+			stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]),
+			p_d_d_data_spaxels_bitmask, d_truth_bitmask, i, n_slices, n_spaxels_per_slice) != cudaSuccess) {
+			throw_error(CUDA_FAIL_COMPARE_BITMASK_2D);
+		}
+		if (cudaThreadSynchronize() != cudaSuccess) {
+			throw_error(CUDA_FAIL_SYNCHRONIZE);
+		}
+
+		// Copy the truth array to the host.
+		//
+		int* h_truth_bitmask = hmemory<int>::malloc(n_spaxels_per_slice*sizeof(int), true);
+		memory<int>::memcpydh(h_truth_bitmask, d_truth_bitmask, n_spaxels_per_slice*sizeof(int));
+
+		std::vector<int> this_spaxel_similar_bitmask_spaxels_indexes;
+		for (int j = 0; j < n_spaxels_per_slice; j++) {
+			if (h_truth_bitmask[j] == 1) {
+				this_spaxel_similar_bitmask_spaxels_indexes.push_back(j);
+			}
+		}
+
+		// Get this spaxel's bitmask data and use this to ascertain which slice indexes are to be 
+		// considered for LSQ.
+		int *this_spaxel_bitmask = hmemory<int>::malloc(n_slices*sizeof(int), true);
+		memory<int>::memcpydh(this_spaxel_bitmask, p_h_d_data_spaxels_bitmask[i], n_slices*sizeof(int));
+
+		std::vector<int> this_spaxel_valid_slice_indexes;
+		for (int j = 0; j < n_slices; j++) {
+			if (this_spaxel_bitmask[j] == 1) {
+				this_spaxel_valid_slice_indexes.push_back(j);
+			}
+		}
+
+		// Find and populate parameters required to construct LSQ matrices.
+		//
+		// number of elements for this spaxel [this_n_elements_per_spaxel]
+		int this_n_elements_per_spaxel = 0;
+		for (int j = 0; j < n_slices; j++) {
+			if (this_spaxel_bitmask[j] == 1) {
+				this_n_elements_per_spaxel++;
+			}
+		}
+		if (this_n_elements_per_spaxel < poly_order + 1) {		// insufficient elements to fit
+			continue;
+		}
+
+		// number of spaxels with similar bitmask to this spaxel [this_n_similar_bitmasks]
+		int this_n_similar_bitmasks = 0;
+		for (int j = 0; j < n_spaxels_per_slice; j++) {
+			if (h_truth_bitmask[j] == 1) {
+				this_n_similar_bitmasks++;
+			}
+			// Flag this spaxel as processed.
+			if (processed_spaxels[j] == false && h_truth_bitmask[j] == 1) {
+				processed_spaxels[j] = true;
+			}
+		}
+
+		char trans = 'N';
+		int n = poly_order + 1;
+		int m = this_n_elements_per_spaxel;
+		int lda = this_n_elements_per_spaxel;
+		int ldb = this_n_elements_per_spaxel;
+		int nrhs = this_n_similar_bitmasks;
+
+		// Form matrix A in column-major and copy to device.
+		//
+		Complex* h_A;
+		h_A = hmemory<Complex>::malloc(this_n_elements_per_spaxel*(poly_order + 1)*sizeof(Complex), true);
+		for (int j = 0; j < poly_order + 1; j++) {
+			for (int i = 0; i < this_n_elements_per_spaxel; i++) {
+				h_A[i + (j* this_n_elements_per_spaxel)].x = pow(process::iinput->wavelengths[this_spaxel_valid_slice_indexes[i]], j);
+				h_A[i + (j* this_n_elements_per_spaxel)].y = 0;
+			}
+		}
+		Complex* d_A;
+		d_A = dmemory<Complex>::malloc(this_n_elements_per_spaxel*(poly_order + 1)*sizeof(Complex), true);
+		dmemory<Complex>::memcpyhd(d_A, h_A, this_n_elements_per_spaxel*(poly_order + 1)*sizeof(Complex));
+
+		// Form matrix B in column-major on device.
+		//
+		Complex* d_B;
+		d_B = dmemory<Complex>::malloc(this_n_elements_per_spaxel*nrhs*sizeof(Complex), true);
+		for (int j = 0; j < nrhs; j++) {
+			dmemory<Complex>::memcpydd(&d_B[j*this_n_elements_per_spaxel], p_h_d_data_spaxels[this_spaxel_similar_bitmask_spaxels_indexes[j]], 
+				this_n_elements_per_spaxel*sizeof(Complex));
+		}
+
+		// Solve!
+		//
+		culaStatus s;
+		s = culaDeviceZgels(trans, m, n, nrhs, reinterpret_cast<culaDeviceDoubleComplex*>(d_A), lda, reinterpret_cast<culaDeviceDoubleComplex*>(d_B), ldb);
+		if (s != culaNoError) {
+			throw_error(CULA_ZGELS_ERROR);
+		}
+
+		// Save off coeffs as 1D array [p_spaxel_poly_coeffs] of size ([poly_order] + 1) * [n_spaxels_per_slice], placing
+		// the coeffs into the correct place in the array.
+		//
+		for (int j = 0; j < nrhs; j++) {
+			dmemory<Complex>::memcpydd(&p_spaxel_poly_coeffs[this_spaxel_similar_bitmask_spaxels_indexes[j]*(poly_order+1)], &d_B[j*(poly_order+1)], 
+				(poly_order + 1)*sizeof(Complex));
+		}
+
+		hmemory<int>::free(h_truth_bitmask);
+		dmemory<int>::free(d_truth_bitmask);
+		hmemory<int>::free(this_spaxel_bitmask);
+		hmemory<Complex>::free(h_A);
+		dmemory<Complex>::free(d_A);
+		dmemory<Complex>::free(d_B);
+	}
+
+
+	// UP TO HERE.
+	// TODO: add polynomial subtraction routine, the old one used a 1D array p_data_slices, now we have a 2D array.
+	// refactor cSubtractPoly like cGetSpaxelData.
+
 	culaShutdown();
 
-	dmemory<Complex>::free(this_d_A);
-	dmemory<Complex>::free(p_spaxel);
-	dmemory<Complex*>::free(p_data_slices);
-	dmemory<Complex>::free(p_data_spaxels);
-	hmemory<Complex>::free(A);
-	dmemory<Complex>::free(d_A);
-	dmemory<Complex>::free(p_data_spaxel_coeffs);
+	// TODO: free all other bits of memory
 
 }
 
@@ -308,7 +454,7 @@ std::vector<rectangle> process::rescaleDatacubeToReferenceWavelengthOnDevice(int
 
 void process::setDataToAmplitude() {
 	for (std::vector<dspslice*>::iterator it = process::d_datacube->slices.begin(); it != process::d_datacube->slices.end(); ++it) {
-		if (cudaSetComplexRealAsAmplitude(stoi(process::iinput->config_device["nCUDABLOCKS"]),
+		if (cudaSetComplexRealAsAmplitude2D(stoi(process::iinput->config_device["nCUDABLOCKS"]),
 			stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]),
 			(*it)->p_data, (*it)->memsize / sizeof(Complex)) != cudaSuccess) {
 			throw_error(CUDA_FAIL_SET_COMPLEX_REAL_AS_AMPLITUDE);

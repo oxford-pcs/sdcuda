@@ -5,7 +5,7 @@
 #include <valarray>
 
 #include "ccomplex.h"
-#include "cdevice.h"
+#include "cdevice.cuh"
 #include "errors.h"
 
 using std::valarray;
@@ -172,3 +172,6 @@ template class dmemory<Complex**>;
 template class memory<int>;
 template class hmemory<int>;
 template class dmemory<int>;
+template class memory<int*>;
+template class hmemory<int*>;
+template class dmemory<int*>;
