@@ -30,7 +30,7 @@ __device__ __host__ long cGet1DIndexFrom2DXY(long2, long);
 __device__ __host__ long2 cGet2DXYFrom1DIndex(long, long);
 __device__ __host__ quadrant cGet2DQuadrantFrom1DIndex(long, long, long, long);
 __device__ __host__ void cMakeBitmask(Complex**, int*, long, long);
-__device__ __host__ void cPolyval(Complex*, Complex*, long, long);
+__device__ __host__ void cPolySub(Complex*, Complex*, long, long);
 ; __device__ __host__ Complex cTranslate(Complex, long, long, long2, double2);
 
 __global__ void cAdd2D(Complex*, Complex*, long);
@@ -42,5 +42,5 @@ __global__ void cMakeBitmask2D(Complex**, int**, long, long);
 __global__ void cScale2D(Complex*, double, long);
 __global__ void cSetComplexRealAsAmplitude2D(Complex*, long);
 __global__ void cSub2D(Complex*, Complex*, long);
-__global__ void cSubtractPoly(Complex**, Complex*, long, int*, long, long);
+__global__ void cPolySub2D(Complex**, int**, Complex**, long, int*, long, long);
 __global__ void cTranslate2D(Complex*, double2, long);

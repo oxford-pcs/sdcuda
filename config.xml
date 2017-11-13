@@ -55,7 +55,7 @@
     <stage>
       <name>D_GROW_DATACUBE_TO_LARGEST_DIMENSION_SLICE</name>
     </stage>
-    <stage>
+    <!--<stage>
       <name>D_SPAXEL_FIT_POLY_AND_SUBTRACT</name>
       <param>
         <name>POLY_ORDER</name>
@@ -63,7 +63,10 @@
         <description>polynomial order of fit</description>
       </param>
     </stage>
-    <!--<stage>
+    <stage>
+      <name>D_REVERT_LAST_GROW</name>
+    </stage>
+    <stage>
       <name>D_FFT</name>
     </stage>
     <stage>
@@ -80,9 +83,6 @@
     </stage>
     <stage>
       <name>D_SET_DATA_TO_AMPLITUDE</name>
-    </stage>
-    <stage>
-      <name>D_CROP_TO_SMALLEST_DIMENSION</name>
     </stage>-->
     <stage>
       <name>COPY_DEVICE_DATACUBE_TO_HOST</name>

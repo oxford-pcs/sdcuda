@@ -155,7 +155,7 @@ __device__ __host__ void cMakeBitmask(Complex** a, int* b, long spaxel_idx, long
 	}
 }
 
-__device__ __host__ void cPolyValSub(Complex* in, Complex* coeffs, long n_coeffs, long x) {
+__device__ __host__ void cPolySub(Complex* in, Complex* coeffs, long n_coeffs, long x) {
 	double c = 0.;
 	for (int i = 0; i < n_coeffs; i++) {
 		c += powf(x, i) * coeffs[i].x;
@@ -356,7 +356,7 @@ __global__ void cSetComplexRealAsAmplitude2D(Complex *a, long size) {
 	}
 }
 
-__global__ void cSubtractPoly(Complex** in, Complex* coeffs, long n_coeffs, int* wavelengths, long n_slices, long n_spaxels) {
+__global__ void cPolySub2D(Complex** in, int** mask, Complex** coeffs, long n_coeffs, int* wavelengths, long n_slices, long n_spaxels_per_slice) {
 	/*
 	*/
 	const int numThreads = blockDim.x * gridDim.x;
@@ -364,10 +364,12 @@ __global__ void cSubtractPoly(Complex** in, Complex* coeffs, long n_coeffs, int*
 
 	// this is required as one thread may need to do multiple 
 	// computations, i.e. if numThreads < size
-	for (int i = threadID; i < n_slices*n_spaxels; i += numThreads) {
-		int slice_idx = i / n_spaxels;
-		int spaxel_idx = i % n_spaxels;
-		cPolyValSub(&in[slice_idx][spaxel_idx], &coeffs[spaxel_idx*n_coeffs], n_coeffs, wavelengths[slice_idx]);
+	for (int i = threadID; i < n_slices*n_spaxels_per_slice; i += numThreads) {	//n_slices*n_spaxels_per_slice
+		int spaxel_idx = i / n_slices;
+		int slice_idx = i % n_slices;
+		if (mask[spaxel_idx][slice_idx] == 1) {
+			cPolySub(&in[slice_idx][spaxel_idx], coeffs[spaxel_idx], n_coeffs, wavelengths[slice_idx]);
+		}
 	}
 }
 

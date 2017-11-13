@@ -36,8 +36,8 @@ cudaError cudaSetComplexRealAsAmplitude2D(int nCUDABLOCKS, int nCUDATHREADSPERBL
 	return cudaGetLastError();
 }
 
-cudaError cudaSubtractPoly(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex** in, Complex* coeffs, long n_coeffs, int* wavelengths, long n_slices, long n_spaxels) {
-	cSubtractPoly << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(in, coeffs, n_coeffs, wavelengths, n_slices, n_spaxels);
+cudaError cudaPolySub2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex** in, int** mask, Complex** coeffs, long n_coeffs, int* wavelengths, long n_slices, long n_spaxels_per_slice) {
+	cPolySub2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(in, mask, coeffs, n_coeffs, wavelengths, n_slices, n_spaxels_per_slice);
 	return cudaGetLastError();
 }
 

@@ -38,18 +38,20 @@ void process::cropToEvenSquareOnHost() {
 	process::h_datacube->crop(rectangle(0, 0, min_dim, min_dim));
 }
 
-std::vector<rectangle> process::cropDatacubeToSmallestDimensionSliceOnDevice() {
+void process::cropDatacubeToSmallestDimensionSliceOnDevice() {
 	std::vector<rectangle> last_regions;
 	for (std::vector<dspslice*>::iterator it = process::d_datacube->slices.begin(); it != process::d_datacube->slices.end(); ++it) {
 		last_regions.push_back((*it)->region);
 	}
 	d_datacube->crop(d_datacube->getSmallestSliceRegion());
-	return last_regions;
+	process::last_crop_regions = last_regions;
 }
 
 void process::fitPolyToSpaxelAndSubtractOnDevice(int poly_order) {
-	
-	//TODO: need consistency check for slice dimensions.
+	// Check cube passes integrity check.
+	if (d_datacube->state != OK) {
+		throw_error(CPROCESS_FIT_AND_SUBTRACT_POLY_FAIL_INTEGRITY_CHECK);
+	}
 
 	// Initialise CULA
 	culaStatus s;
@@ -87,7 +89,6 @@ void process::fitPolyToSpaxelAndSubtractOnDevice(int poly_order) {
 	}
 	p_d_d_data_spaxels = dmemory<Complex*>::malloc(n_spaxels_per_slice*sizeof(Complex*), true);
 	memory<Complex*>::memcpyhd(p_d_d_data_spaxels, p_h_d_data_spaxels, n_spaxels_per_slice*sizeof(Complex*));
-
 
 	// Call the CUDA function to populate [p_d_data_spaxels].
 	//
@@ -149,9 +150,22 @@ void process::fitPolyToSpaxelAndSubtractOnDevice(int poly_order) {
 	// of similar bitmasks found. This significantly decreases the overhead compared to calculating each 
 	// spaxel separately.
 	//
-	Complex* p_spaxel_poly_coeffs = dmemory<Complex>::malloc(n_spaxels_per_slice*(poly_order + 1)*sizeof(Complex), true);
-	std::vector<bool> processed_spaxels(n_spaxels_per_slice, false);	// keep track of processed spaxels
+	// First we create an array to hold the spaxel polynomial coefficients.
+	//
+	Complex** p_h_d_spaxel_poly_coeffs;		// array of pointers (ON DEVICE) to spaxel coeffs memory (ON DEVICE)
+	Complex** p_d_d_spaxel_poly_coeffs;		// array of pointers (ON HOST) to spaxel coeffs memory (ON DEVICE)
+
+	p_h_d_spaxel_poly_coeffs = hmemory<Complex*>::malloc(n_spaxels_per_slice*sizeof(Complex*), true);
 	for (int i = 0; i < n_spaxels_per_slice; i++) {
+		p_h_d_spaxel_poly_coeffs[i] = dmemory<Complex>::malloc((poly_order + 1)*sizeof(Complex), true);
+	}
+	p_d_d_spaxel_poly_coeffs = dmemory<Complex*>::malloc(n_spaxels_per_slice*sizeof(Complex*), true);
+	memory<Complex*>::memcpyhd(p_d_d_spaxel_poly_coeffs, p_h_d_spaxel_poly_coeffs, n_spaxels_per_slice*sizeof(Complex*));
+
+	// And an array to keep track of which spaxels we've processed (as we're batching).
+	//
+	std::vector<bool> processed_spaxels(n_spaxels_per_slice, false);
+	for (int i = 0; i < n_spaxels_per_slice; i++) { 
 
 		// Check this spaxel hasn't been processed already.
 		//
@@ -234,9 +248,9 @@ void process::fitPolyToSpaxelAndSubtractOnDevice(int poly_order) {
 		Complex* h_A;
 		h_A = hmemory<Complex>::malloc(this_n_elements_per_spaxel*(poly_order + 1)*sizeof(Complex), true);
 		for (int j = 0; j < poly_order + 1; j++) {
-			for (int i = 0; i < this_n_elements_per_spaxel; i++) {
-				h_A[i + (j* this_n_elements_per_spaxel)].x = pow(process::iinput->wavelengths[this_spaxel_valid_slice_indexes[i]], j);
-				h_A[i + (j* this_n_elements_per_spaxel)].y = 0;
+			for (int k = 0; k < this_n_elements_per_spaxel; k++) {
+				h_A[k + (j* this_n_elements_per_spaxel)].x = pow(process::iinput->wavelengths[this_spaxel_valid_slice_indexes[k]], j);
+				h_A[k + (j* this_n_elements_per_spaxel)].y = 0;
 			}
 		}
 		Complex* d_A;
@@ -260,11 +274,11 @@ void process::fitPolyToSpaxelAndSubtractOnDevice(int poly_order) {
 			throw_error(CULA_ZGELS_ERROR);
 		}
 
-		// Save off coeffs as 1D array [p_spaxel_poly_coeffs] of size ([poly_order] + 1) * [n_spaxels_per_slice], placing
+		// Save off coeffs as 1D array [p_d_spaxel_poly_coeffs] of size ([poly_order] + 1) * [n_spaxels_per_slice], placing
 		// the coeffs into the correct place in the array.
 		//
 		for (int j = 0; j < nrhs; j++) {
-			dmemory<Complex>::memcpydd(&p_spaxel_poly_coeffs[this_spaxel_similar_bitmask_spaxels_indexes[j]*(poly_order+1)], &d_B[j*(poly_order+1)], 
+			dmemory<Complex>::memcpydd(p_h_d_spaxel_poly_coeffs[this_spaxel_similar_bitmask_spaxels_indexes[j]], &d_B[j*(this_n_elements_per_spaxel)], 
 				(poly_order + 1)*sizeof(Complex));
 		}
 
@@ -276,14 +290,40 @@ void process::fitPolyToSpaxelAndSubtractOnDevice(int poly_order) {
 		dmemory<Complex>::free(d_B);
 	}
 
+	// Evaluate polynomial and subtract.
+	//
+	int* wavelengths;
+	wavelengths = dmemory<int>::malloc(process::iinput->wavelengths.size()*sizeof(int), true);
+	dmemory<int>::memcpyhd(wavelengths, &process::iinput->wavelengths[0], process::iinput->wavelengths.size()*sizeof(int));
+	cudaPolySub2D(stoi(process::iinput->config_device["nCUDABLOCKS"]), stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]),
+		p_d_data_slices, p_d_d_data_spaxels_bitmask, p_d_d_spaxel_poly_coeffs, poly_order + 1, wavelengths, n_slices, n_spaxels_per_slice);
+	if (cudaThreadSynchronize() != cudaSuccess) {
+		throw_error(CUDA_FAIL_SYNCHRONIZE);
+	}
 
-	// UP TO HERE.
-	// TODO: add polynomial subtraction routine, the old one used a 1D array p_data_slices, now we have a 2D array.
-	// refactor cSubtractPoly like cGetSpaxelData.
+	// Free memory and shut down CULA.
+
+	dmemory<Complex*>::free(p_d_data_slices);
+
+	for (int i = 0; i < n_spaxels_per_slice; i++) {
+		dmemory<Complex>::free(p_h_d_data_spaxels[i]);
+	}
+	hmemory<Complex*>::free(p_h_d_data_spaxels);
+	dmemory<Complex*>::free(p_d_d_data_spaxels);
+
+	for (int i = 0; i < n_spaxels_per_slice; i++) {
+		dmemory<int>::free(p_h_d_data_spaxels_bitmask[i]);
+	}
+	hmemory<int*>::free(p_h_d_data_spaxels_bitmask);
+	dmemory<int*>::free(p_d_d_data_spaxels_bitmask);
+
+	for (int i = 0; i < n_spaxels_per_slice; i++) {
+		dmemory<Complex>::free(p_h_d_spaxel_poly_coeffs[i]);
+	}
+	hmemory<Complex*>::free(p_h_d_spaxel_poly_coeffs);
+	dmemory<Complex*>::free(p_d_d_spaxel_poly_coeffs);
 
 	culaShutdown();
-
-	// TODO: free all other bits of memory
 
 }
 
@@ -322,13 +362,13 @@ void process::fftshiftOnDevice() {
 	process::d_datacube = d_datacube_tmp;
 }
 
-std::vector<rectangle> process::growDatacubeToLargestDimensionSliceOnDevice() {
+void process::growDatacubeToLargestDimensionSliceOnDevice() {
 	std::vector<rectangle> last_regions;
 	for (std::vector<dspslice*>::iterator it = process::d_datacube->slices.begin(); it != process::d_datacube->slices.end(); ++it) {
 		last_regions.push_back((*it)->region);
 	}
 	d_datacube->grow(d_datacube->getLargestSliceRegion());
-	return last_regions;
+	process::last_grow_regions = last_regions;
 }
 
 void process::iFftOnDevice() {
@@ -360,7 +400,7 @@ void process::iFftshiftOnDevice() {
 
 void process::revertLastCrop() {
 	if (process::last_crop_regions.size() != process::d_datacube->slices.size()) {
-		throw_error(CPROCESS_REVERT_CROP_REGIONS_NOT_SET);
+		throw_error(CPROCESS_REVERT_CROP_REGIONS_INVALID);
 	}
 	process::d_datacube->grow(process::last_crop_regions);
 
@@ -370,7 +410,7 @@ void process::revertLastCrop() {
 
 void process::revertLastGrow() {
 	if (process::last_grow_regions.size() != process::d_datacube->slices.size()) {
-		throw_error(CPROCESS_REVERT_GROW_REGIONS_NOT_SET);
+		throw_error(CPROCESS_REVERT_GROW_REGIONS_INVALID);
 	}
 	process::d_datacube->crop(process::last_grow_regions);
 
@@ -380,11 +420,11 @@ void process::revertLastGrow() {
 
 void process::revertLastRescale() {
 	if (process::last_rescale_regions.size() != process::d_datacube->slices.size()) {
-		throw_error(CPROCESS_REVERT_RESCALE_REGIONS_NOT_SET);
+		throw_error(CPROCESS_REVERT_RESCALE_REGIONS_INVALID);
 	}
 	std::vector<double> inverse_scale_factors;
 	for (int i = 0; i < process::d_datacube->slices.size(); i++) {
-		inverse_scale_factors[i] = (double)d_datacube->slices[i]->region.x_size / (double)process::last_rescale_regions[i].x_size;
+		inverse_scale_factors.push_back((double)process::last_rescale_regions[i].x_size / (double)d_datacube->slices[i]->region.x_size);
 	}
 
 	// need to roll phase (spatial translation) for odd sized frames, otherwise there's a 0.5 pixel offset in x and y compared to the even frames after ifft.
@@ -419,7 +459,7 @@ void process::makeDatacubeOnHost() {
 	process::h_datacube = process::iinput->makeCube(process::exp_idx, true);
 }
 
-std::vector<rectangle> process::rescaleDatacubeToReferenceWavelengthOnDevice(int reference_wavelength) {
+void process::rescaleDatacubeToReferenceWavelengthOnDevice(int reference_wavelength) {
 	std::vector<double> scale_factors;
 	std::vector<rectangle> last_regions;
 	for (std::vector<dspslice*>::iterator it = process::d_datacube->slices.begin(); it != process::d_datacube->slices.end(); ++it) {
@@ -449,7 +489,7 @@ std::vector<rectangle> process::rescaleDatacubeToReferenceWavelengthOnDevice(int
 			throw_error(CUDA_FAIL_SYNCHRONIZE);
 		}
 	}
-	return last_regions;
+	process::last_rescale_regions = last_regions;
 }
 
 void process::setDataToAmplitude() {
@@ -497,13 +537,12 @@ void process::step(int stage, int nstages) {
 	case D_CROP_DATACUBE_TO_SMALLEST_DIMENSION_SLICE:
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tcropping datacube to smallest dimension slice on device", process::exp_idx, stage, nstages);
 		to_stdout(process::message_buffer);
-		process::last_crop_regions = process::cropDatacubeToSmallestDimensionSliceOnDevice();
+		process::cropDatacubeToSmallestDimensionSliceOnDevice();
 		break;
 	case D_SPAXEL_FIT_POLY_AND_SUBTRACT:
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tfitting polynomial to spaxels and subtracting on device", process::exp_idx, stage, nstages);
 		to_stdout(process::message_buffer);
-		process::fitPolyToSpaxelAndSubtractOnDevice(
-			stoi(process::iinput->stage_parameters[D_SPAXEL_FIT_POLY_AND_SUBTRACT]["POLY_ORDER"]));
+		process::fitPolyToSpaxelAndSubtractOnDevice(stoi(process::iinput->stage_parameters[D_SPAXEL_FIT_POLY_AND_SUBTRACT]["POLY_ORDER"]));
 		break;
 	case D_FFT:
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tffting datacube on device", process::exp_idx, stage, nstages);
@@ -518,7 +557,7 @@ void process::step(int stage, int nstages) {
 	case D_GROW_DATACUBE_TO_LARGEST_DIMENSION_SLICE:
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tgrowing datacube to largest dimension slice on device", process::exp_idx, stage, nstages);
 		to_stdout(process::message_buffer);
-		process::last_grow_regions = process::growDatacubeToLargestDimensionSliceOnDevice();
+		process::growDatacubeToLargestDimensionSliceOnDevice();
 		break;
 	case D_IFFT:
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tiffting datacube on device", process::exp_idx, stage, nstages);
@@ -548,8 +587,7 @@ void process::step(int stage, int nstages) {
 	case D_RESCALE_DATACUBE_TO_REFERENCE_WAVELENGTH:
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tscaling datacube to reference wavelength on device", process::exp_idx, stage, nstages);
 		to_stdout(process::message_buffer);
-		process::last_grow_regions = process::rescaleDatacubeToReferenceWavelengthOnDevice(
-			stoi(process::iinput->stage_parameters[D_RESCALE_DATACUBE_TO_REFERENCE_WAVELENGTH]["WAVELENGTH"]));
+		process::rescaleDatacubeToReferenceWavelengthOnDevice(stoi(process::iinput->stage_parameters[D_RESCALE_DATACUBE_TO_REFERENCE_WAVELENGTH]["WAVELENGTH"]));
 		break;
 	case D_SET_DATA_TO_AMPLITUDE: 
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tsetting datacube data to amplitude on device", process::exp_idx, stage, nstages);
