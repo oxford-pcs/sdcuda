@@ -38,7 +38,7 @@
     <stage>
       <name>D_RESCALE_DATACUBE_TO_REFERENCE_WAVELENGTH</name>
       <param>
-        <name>WAVELENGTH</name>
+        <name>REF_WAVELENGTH</name>
         <value>2000</value>
         <description>wavelength to rescale to (nm)</description>
       </param>
@@ -56,6 +56,24 @@
       <name>D_GROW_DATACUBE_TO_LARGEST_DIMENSION_SLICE</name>
     </stage>
     <stage>
+      <name>D_PHASE_CORRELATE</name>
+      <param>
+        <name>REGION_X_START</name>
+        <value>97</value>
+        <description>phase correlation region x start</description>
+      </param>
+      <param>
+        <name>REGION_Y_START</name>
+        <value>97</value>
+        <description>phase correlation region y start</description>
+      </param>
+      <param>
+        <name>REGION_SIZE</name>
+        <value>20</value>
+        <description>phase correlation region size</description>
+      </param>
+    </stage>
+    <!--<stage>
       <name>D_SPAXEL_FIT_POLY_AND_SUBTRACT</name>
       <param>
         <name>POLY_ORDER</name>
@@ -80,7 +98,7 @@
     </stage>
     <stage>
       <name>D_IFFT</name>
-    </stage>
+    </stage>-->
     <stage>
       <name>D_SET_DATA_TO_AMPLITUDE</name>
     </stage>

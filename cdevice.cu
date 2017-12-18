@@ -19,6 +19,16 @@ __device__ __host__ Complex cAdd(Complex a, Complex b) {
 	return c;
 }
 
+__device__ __host__ Complex cDivide(Complex a, double b) {
+	/*
+	Divide a complex number [a] by a real number [b].
+	*/
+	Complex c;
+	c.x = a.x / b;
+	c.y = a.y / b;
+	return c;
+}
+
 __device__ __host__ Complex cExp(Complex a) {
 	/*
 	Calculate the exponential complex number [a].
@@ -165,8 +175,9 @@ __device__ __host__ void cPolySub(Complex* in, Complex* coeffs, long n_coeffs, l
 
 __device__ __host__ Complex cTranslate(Complex a, long dim1, long dim2, long2 position, double2 translation) {
 	Complex b;
-	double x_e = (position.x * -translation.x) / dim1;
-	double y_e = (position.y * -translation.y) / dim2;
+	double x_e = ((double)position.x * -translation.x) / (double)dim1;
+	double y_e = ((double)position.y * -translation.y) / (double)dim2;
+
 	b.x = 0;
 	b.y = -2 * M_PI * (x_e + y_e);
 
@@ -198,6 +209,21 @@ __global__ void cCompareArray2D(int** a, int *b, long index, long n_slices, long
 	// computations, i.e. if numThreads < size
 	for (int i = threadID; i < n_spaxels_per_slice; i += numThreads) {
 		cCompareArray(a, b, index, i, n_slices);
+	}
+}
+
+__global__ void cDivideByRealComponent2D(Complex* a, Complex* b, Complex* c, long size) {
+	/*
+	Divide the numbers from complex array [a] with [size] elements by real component of complex array [b] 
+	pointwise storing the result in [c].
+	*/
+	const int numThreads = blockDim.x * gridDim.x;
+	const int threadID = blockIdx.x * blockDim.x + threadIdx.x;
+
+	// this is required as one thread may need to do multiple 
+	// computations, i.e. if numThreads < size
+	for (int i = threadID; i < size; i += numThreads) {
+		c[i] = cDivide(a[i], b[i].x);
 	}
 }
 
@@ -312,6 +338,36 @@ __global__ void cMakeBitmask2D(Complex** a, int **b, long n_slices, long n_spaxe
 	}
 }
 
+__global__ void cMultiplyHadamard2D(Complex* a, Complex* b, Complex* c, long n_spaxels_per_slice) {
+	/*
+	*/
+	const int numThreads = blockDim.x * gridDim.x;
+	const int threadID = blockIdx.x * blockDim.x + threadIdx.x;
+
+	// this is required as one thread may need to do multiple 
+	// computations, i.e. if numThreads < size
+	for (int i = threadID; i < n_spaxels_per_slice; i += numThreads) {
+		c[i] = cMultiply(a[i], b[i]);
+	}
+}
+
+__global__ void cPolySub2D(Complex** in, int** mask, Complex** coeffs, long n_coeffs, int* wavelengths, long n_slices, long n_spaxels_per_slice) {
+	/*
+	*/
+	const int numThreads = blockDim.x * gridDim.x;
+	const int threadID = blockIdx.x * blockDim.x + threadIdx.x;
+
+	// this is required as one thread may need to do multiple 
+	// computations, i.e. if numThreads < size
+	for (int i = threadID; i < n_slices*n_spaxels_per_slice; i += numThreads) {	//n_slices*n_spaxels_per_slice
+		int spaxel_idx = i / n_slices;
+		int slice_idx = i % n_slices;
+		if (mask[spaxel_idx][slice_idx] == 1) {
+			cPolySub(&in[slice_idx][spaxel_idx], coeffs[spaxel_idx], n_coeffs, wavelengths[slice_idx]);
+		}
+	}
+}
+
 __global__ void cScale2D(Complex *a, double scale, long size) {
 	/*
 	Scale complex array [a] with [size] elements by [scale] pointwise.
@@ -353,23 +409,6 @@ __global__ void cSetComplexRealAsAmplitude2D(Complex *a, long size) {
 	for (int i = threadID; i < size; i += numThreads) {
 		a[i].x = cGetAmplitude(a[i]);
 		a[i].y = 0;
-	}
-}
-
-__global__ void cPolySub2D(Complex** in, int** mask, Complex** coeffs, long n_coeffs, int* wavelengths, long n_slices, long n_spaxels_per_slice) {
-	/*
-	*/
-	const int numThreads = blockDim.x * gridDim.x;
-	const int threadID = blockIdx.x * blockDim.x + threadIdx.x;
-
-	// this is required as one thread may need to do multiple 
-	// computations, i.e. if numThreads < size
-	for (int i = threadID; i < n_slices*n_spaxels_per_slice; i += numThreads) {	//n_slices*n_spaxels_per_slice
-		int spaxel_idx = i / n_slices;
-		int slice_idx = i % n_slices;
-		if (mask[spaxel_idx][slice_idx] == 1) {
-			cPolySub(&in[slice_idx][spaxel_idx], coeffs[spaxel_idx], n_coeffs, wavelengths[slice_idx]);
-		}
 	}
 }
 

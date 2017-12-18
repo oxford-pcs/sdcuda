@@ -6,6 +6,11 @@ cudaError cudaCompareArray2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, int** in
 	return cudaGetLastError();
 }
 
+cudaError cudaDivideByRealComponent2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* in1, Complex* in2, Complex* out, long n_spaxels_per_slice) {
+	cDivideByRealComponent2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(in1, in2, out, n_spaxels_per_slice);
+	return cudaGetLastError();
+}
+
 cudaError cudaGetSpaxelData2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex** in, Complex** out, long n_slices, long n_spaxels_per_slice) {
 	cGetSpaxelData2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(in, out, n_slices, n_spaxels_per_slice);
 	return cudaGetLastError();
@@ -26,13 +31,18 @@ cudaError cudaMakeBitmask2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex**
 	return cudaGetLastError();
 }
 
-cudaError cudaScale2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* data, double constant, long memsize) {
-	cScale2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(data, constant, memsize);
+cudaError cudaMultiplyHadamard2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* in1, Complex* in2, Complex* out, long n_spaxels_per_slice) {
+	cMultiplyHadamard2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(in1, in2, out, n_spaxels_per_slice);
 	return cudaGetLastError();
 }
 
-cudaError cudaSetComplexRealAsAmplitude2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* a, long size) {
-	cSetComplexRealAsAmplitude2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(a, size);
+cudaError cudaScale2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* in, double factor, long memsize) {
+	cScale2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(in, factor, memsize);
+	return cudaGetLastError();
+}
+
+cudaError cudaSetComplexRealAsAmplitude2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* in, long size) {
+	cSetComplexRealAsAmplitude2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(in, size);
 	return cudaGetLastError();
 }
 
@@ -41,7 +51,7 @@ cudaError cudaPolySub2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex** in,
 	return cudaGetLastError();
 }
 
-cudaError cudaTranslate2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* a, double2 translation, long x_size) {
-	cTranslate2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(a, translation, x_size);
+cudaError cudaTranslate2D(int nCUDABLOCKS, int nCUDATHREADSPERBLOCK, Complex* in, double2 translation, long x_size) {
+	cTranslate2D << <nCUDABLOCKS, nCUDATHREADSPERBLOCK >> >(in, translation, x_size);
 	return cudaGetLastError();
 }

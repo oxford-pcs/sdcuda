@@ -20,6 +20,7 @@ const std::map<std::string, process_stages> process_stages_mapping {
 	{ "D_GROW_DATACUBE_TO_LARGEST_DIMENSION_SLICE", D_GROW_DATACUBE_TO_LARGEST_DIMENSION_SLICE },
 	{ "D_IFFT", D_IFFT },
 	{ "D_IFFTSHIFT", D_IFFTSHIFT },
+	{ "D_PHASE_CORRELATE", D_PHASE_CORRELATE },
 	{ "D_REVERT_LAST_CROP", D_REVERT_LAST_CROP },
 	{ "D_REVERT_LAST_GROW", D_REVERT_LAST_GROW },
 	{ "D_RESCALE_DATACUBE_TO_PRE_RESCALE_SIZE", D_REVERT_LAST_RESCALE },
@@ -33,15 +34,15 @@ class input {
 public:
 	input(std::string, std::string, std::string, bool);
 	~input() {};
-	hcube* makeCube(long, bool);
+	hcube* makeHostCube(long, bool);
 	std::vector<long> dim;
 	std::valarray<double> data;
 	std::string in_fits_filename, in_params_filename, in_config_filename;
 	xml_document<> config;
 	xml_document<> params;
 	std::vector<int> wavelengths;
-	std::map<std::string, std::string> config_host;
-	std::map<std::string, std::string> config_device;
+	std::map<std::string, std::string> config_host;			// dictionary containing all config items related to the host.
+	std::map<std::string, std::string> config_device;		// dictionary containing all config items related to the device.
 	std::list<process_stages> stages;
 	std::map<process_stages, std::map<std::string, std::string>> stage_parameters;
 private:

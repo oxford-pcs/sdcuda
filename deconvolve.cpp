@@ -20,8 +20,6 @@ process* go(input* iinput, int exp_idx) {
 int main(int argc, char **argv) {
 	print_banner();
 
-	// Parse the command line input and process
-	//
 	clparser* iclparser = new clparser(argc, argv);
 	input* iinput = new input(iclparser->in_FITS_filename, iclparser->in_params_filename, iclparser->in_config_filename, true);
 	printf("\n");

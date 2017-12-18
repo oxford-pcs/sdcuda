@@ -16,6 +16,7 @@ enum process_stages {
 	D_GROW_DATACUBE_TO_LARGEST_DIMENSION_SLICE,
 	D_IFFT,
 	D_IFFTSHIFT,
+	D_PHASE_CORRELATE,
 	D_REVERT_LAST_CROP,
 	D_REVERT_LAST_GROW,
 	D_REVERT_LAST_RESCALE,
@@ -45,7 +46,6 @@ public:
 private:
 	void copyDeviceDatacubeToHost();
 	void copyHostDatacubeToDevice();
-	void correctOffsetOnDevice();
 	void cropToEvenSquareOnHost();
 	void cropDatacubeToSmallestDimensionSliceOnDevice();
 	void fitPolyToSpaxelAndSubtractOnDevice(int);
@@ -56,6 +56,7 @@ private:
 	void iFftshiftOnDevice();
 	void makeDatacubeOnHost();
 	void normaliseOnDevice();
+	void phaseCorrelateOnDevice(int, int, int);
 	void rescaleDatacubeToReferenceWavelengthOnDevice(int);
 	void revertLastCrop();
 	void revertLastGrow();

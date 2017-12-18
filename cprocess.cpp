@@ -20,6 +20,7 @@ process::~process() {
 	delete process::d_datacube;
 }
 
+
 void process::copyDeviceDatacubeToHost() {
 	delete h_datacube;
 	process::h_datacube = new hcube(d_datacube);
@@ -398,6 +399,139 @@ void process::iFftshiftOnDevice() {
 	process::d_datacube = d_datacube_tmp;
 }
 
+void process::phaseCorrelateOnDevice(int region_x_start, int region_y_start, int region_size) {
+
+	//FIXME REALLY SHOULD BE FREQUENCY DOMAIN
+	if (process::d_datacube->domain != SPATIAL)
+		printf("problem");
+
+	// Define some useful variables.
+	//
+	int region_n_spaxels = region_size*region_size;
+
+	// Initialise CULA.
+	//
+	culaStatus s;
+	s = culaInitialize();
+	if (s != culaNoError) {
+		throw_error(CULA_INITIALISATION_ERROR);
+	}
+
+	// Define starting variables for phase correlation.
+	//
+	dcube* G_a;
+	dcube* G_b;
+	G_a = process::d_datacube->deepcopy();
+	G_a->crop(rectangle(region_x_start, region_y_start, region_size, region_size));
+	G_b = G_a->deepcopy();
+
+	// Move to fourier space.
+	//
+	G_a->fft(false);
+	G_b->fft(false);
+
+	// Construct transpose conjugate for datacube [G_b].
+	//
+	dcube* G_b_conjugate = G_b->deepcopy();
+	int n = region_size;
+	int lda = region_size;
+	for (std::vector<dspslice*>::iterator it = G_b_conjugate->slices.begin(); it != G_b_conjugate->slices.end(); ++it) {
+		s = culaDeviceZgeTransposeConjugateInplace(n, reinterpret_cast<culaDeviceDoubleComplex*>((*it)->p_data), lda);
+		if (s != culaNoError) {
+			throw_error(CULA_ZGETRANSPOSECONJUGATE_ERROR);
+		}
+		s = culaDeviceZgeTransposeInplace(n, reinterpret_cast<culaDeviceDoubleComplex*>((*it)->p_data), lda);
+		if (s != culaNoError) {
+			throw_error(CULA_ZGETRANSPOSECONJUGATE_ERROR);
+		}
+	}
+	delete G_b;
+
+	// For each slice, calculate the cross-power spectrum by multiplying the complex conjugate [G_b_conjugate] with [G_a] 
+	// elementwise and normalising.
+	//
+	dcube* G_a_hadamard_G_b_conjugate = G_a->deepcopy();
+	for (int i = 0; i < G_a->slices.size(); i++) {
+		if (cudaMultiplyHadamard2D(stoi(process::iinput->config_device["nCUDABLOCKS"]),
+			stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]),
+			G_a->slices[i]->p_data, G_b_conjugate->slices[0]->p_data, G_a_hadamard_G_b_conjugate->slices[i]->p_data, region_n_spaxels) != cudaSuccess) {
+			throw_error(CUDA_FAIL_MULTIPLY_HADAMARD_2D);
+		}
+		if (cudaThreadSynchronize() != cudaSuccess) {
+			throw_error(CUDA_FAIL_SYNCHRONIZE);
+		}
+	}
+	delete G_a;
+	delete G_b_conjugate;
+
+	dcube* G_a_hadamard_G_b_conjugate_normalised = G_a_hadamard_G_b_conjugate->deepcopy();
+	for (std::vector<dspslice*>::iterator it = G_a_hadamard_G_b_conjugate_normalised->slices.begin(); it != G_a_hadamard_G_b_conjugate_normalised->slices.end(); ++it) {
+		if (cudaSetComplexRealAsAmplitude2D(stoi(process::iinput->config_device["nCUDABLOCKS"]),
+			stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]),
+			(*it)->p_data, region_n_spaxels) != cudaSuccess) {
+			throw_error(CUDA_FAIL_SET_COMPLEX_REAL_AS_AMPLITUDE);
+		}
+		if (cudaThreadSynchronize() != cudaSuccess) {
+			throw_error(CUDA_FAIL_SYNCHRONIZE);
+		}
+	}
+
+	dcube* R = G_a_hadamard_G_b_conjugate->deepcopy();
+	for (int i = 0; i < G_a_hadamard_G_b_conjugate->slices.size(); i++) {
+		if (cudaDivideByRealComponent2D(stoi(process::iinput->config_device["nCUDABLOCKS"]),
+			stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]),
+			G_a_hadamard_G_b_conjugate->slices[i]->p_data, G_a_hadamard_G_b_conjugate_normalised->slices[i]->p_data, 
+			R->slices[i]->p_data, region_n_spaxels) != cudaSuccess) {
+			throw_error(CUDA_FAIL_DIVIDE_BY_REAL_COMPONENT_2D);
+		}
+		if (cudaThreadSynchronize() != cudaSuccess) {
+			throw_error(CUDA_FAIL_SYNCHRONIZE);
+		}
+	}
+
+	delete G_a_hadamard_G_b_conjugate;
+	delete G_a_hadamard_G_b_conjugate_normalised;
+
+	R->fft(true);
+
+	//delete process::d_datacube;
+	//process::d_datacube = R;
+
+	//FIXME FIND PEAKS
+
+	double delta_y_p = 41.4249 / (41.4249 + 158.953);
+	double delta_y_m = 41.4249 / (41.4249 - 158.953);
+
+	//FIXME which is correct?
+	// e.g. 1.206 or 0.65?
+    // say 1.206, so shift is 0->1.206
+	// need a poly order term.
+
+	process::d_datacube->fft(false);
+
+	for (std::vector<dspslice*>::iterator it = process::d_datacube->slices.begin(); it != process::d_datacube->slices.end(); ++it) {
+		cudaScale2D(stoi(process::iinput->config_device["nCUDABLOCKS"]),
+			stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]),
+			(*it)->p_data, (1. / ((*it)->getDimensions().x*(*it)->getDimensions().y)), (*it)->memsize / sizeof(Complex));
+		if (cudaThreadSynchronize() != cudaSuccess) {
+			throw_error(CUDA_FAIL_SYNCHRONIZE);
+		}
+	}
+
+	for (int i = 0; i < 201; i++) {
+		if (cudaTranslate2D(stoi(process::iinput->config_device["nCUDABLOCKS"]),
+			stoi(process::iinput->config_device["nCUDATHREADSPERBLOCK"]),
+			process::d_datacube->slices[i]->p_data, double2{0., 1-(1.*(i/201.))}, process::d_datacube->slices[i]->region.x_size) != cudaSuccess) {
+			throw_error(CUDA_FAIL_TRANSLATE_2D);
+		}
+		if (cudaThreadSynchronize() != cudaSuccess) {
+			throw_error(CUDA_FAIL_SYNCHRONIZE);
+		}
+	}
+
+	process::d_datacube->fft(true);
+}
+
 void process::revertLastCrop() {
 	if (process::last_crop_regions.size() != process::d_datacube->slices.size()) {
 		throw_error(CPROCESS_REVERT_CROP_REGIONS_INVALID);
@@ -456,7 +590,7 @@ void process::revertLastRescale() {
 }
 
 void process::makeDatacubeOnHost() {
-	process::h_datacube = process::iinput->makeCube(process::exp_idx, true);
+	process::h_datacube = process::iinput->makeHostCube(process::exp_idx, true);
 }
 
 void process::rescaleDatacubeToReferenceWavelengthOnDevice(int reference_wavelength) {
@@ -569,6 +703,13 @@ void process::step(int stage, int nstages) {
 		to_stdout(process::message_buffer);
 		process::iFftshiftOnDevice();
 		break;
+	case D_PHASE_CORRELATE:
+		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tphase correlating datacube on device", process::exp_idx, stage, nstages);
+		to_stdout(process::message_buffer);
+		process::phaseCorrelateOnDevice(stoi(process::iinput->stage_parameters[D_PHASE_CORRELATE]["REGION_X_START"]),
+			stoi(process::iinput->stage_parameters[D_PHASE_CORRELATE]["REGION_Y_START"]),
+			stoi(process::iinput->stage_parameters[D_PHASE_CORRELATE]["REGION_SIZE"]));
+		break;
 	case D_REVERT_LAST_CROP:
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\treverting last crop on device", process::exp_idx, stage, nstages);
 		to_stdout(process::message_buffer);
@@ -587,7 +728,7 @@ void process::step(int stage, int nstages) {
 	case D_RESCALE_DATACUBE_TO_REFERENCE_WAVELENGTH:
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tscaling datacube to reference wavelength on device", process::exp_idx, stage, nstages);
 		to_stdout(process::message_buffer);
-		process::rescaleDatacubeToReferenceWavelengthOnDevice(stoi(process::iinput->stage_parameters[D_RESCALE_DATACUBE_TO_REFERENCE_WAVELENGTH]["WAVELENGTH"]));
+		process::rescaleDatacubeToReferenceWavelengthOnDevice(stoi(process::iinput->stage_parameters[D_RESCALE_DATACUBE_TO_REFERENCE_WAVELENGTH]["REF_WAVELENGTH"]));
 		break;
 	case D_SET_DATA_TO_AMPLITUDE: 
 		sprintf(process::message_buffer, "%d\tPROCESS (%d/%d)\tsetting datacube data to amplitude on device", process::exp_idx, stage, nstages);

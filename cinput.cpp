@@ -7,7 +7,6 @@
 #include <map>
 
 #include <CCfits>
-#include "cufft.h"
 #include "rapidxml.hpp"
 
 #include "logger.h"
@@ -20,8 +19,8 @@ using std::valarray;
 
 input::input(std::string in_fits_filename, std::string in_params_filename, std::string in_config_filename, bool verbose) {
 	/*
-	This class houses all the necessary functions required to convert input FITS and parameter files into a 
-	host cube instance.
+	This class reads FITS data, config items and simulation parameters from files specfied at the command line. Input 
+	instances are used to construct a process instance.
 	*/
 	input::in_fits_filename = in_fits_filename;
 	input::in_params_filename = in_params_filename;
@@ -46,12 +45,12 @@ input::input(std::string in_fits_filename, std::string in_params_filename, std::
 	input::processConfigFile(in_config_filename, true);
 	input::processFITSFile(in_fits_filename, true);
 	input::processSimulationParametersFile(in_params_filename, true);
-
 }
 
-hcube* input::makeCube(long n_exposure, bool verbose) {
+
+hcube* input::makeHostCube(long n_exposure, bool verbose) {
 	/* 
-	This function constructs a host cube instance using the necessary class variables for the [n_exposure] exposure.
+	Construct a host cube instance from the exposure with index [n_exposure].
 	*/
 	try {
 		std::size_t start = n_exposure*(input::dim[0]*input::dim[1]);
@@ -70,12 +69,16 @@ hcube* input::makeCube(long n_exposure, bool verbose) {
 }
 
 void input::processConfigFile(string filename, bool verbose) {
-	input::readXMLFile(input::config, filename, verbose); // parse parameters into [config]
+	/*
+	Process a config file.
+	*/
+	input::readXMLFile(input::config, filename, verbose);
 
 	xml_node<> *node;
 	std::string stage_name, stage_value;
 	std::string param_name, param_value;
-	//host
+
+	// populate host dictionary
 	node = input::config.first_node()->first_node("host");
 	for (xml_node<> *node_host = node->first_node(); node_host; node_host = node_host->next_sibling()) {
 		for (xml_node<> *node_param = node_host->first_node(); node_param; node_param = node_param->next_sibling()) {
@@ -88,7 +91,7 @@ void input::processConfigFile(string filename, bool verbose) {
 		input::config_host[param_name] = param_value;
 	}
 
-	// device
+	// populate device dictionary
 	node = input::config.first_node()->first_node("device");
 	for (xml_node<> *node_device = node->first_node(); node_device; node_device = node_device->next_sibling()) {
 		for (xml_node<> *node_param = node_device->first_node(); node_param; node_param = node_param->next_sibling()) {
@@ -101,11 +104,11 @@ void input::processConfigFile(string filename, bool verbose) {
 		input::config_device[param_name] = param_value;
 	}
 
-	// process
+	// populate process stage dictionary
 	node = input::config.first_node()->first_node("process");
 	for (xml_node<> *node_process = node->first_node(); node_process; node_process = node_process->next_sibling()) {
+		std::map<std::string, std::string> this_stage_params;
 		for (xml_node<> *node_stage = node_process->first_node(); node_stage; node_stage = node_stage->next_sibling()) {
-			std::map<std::string, std::string> this_stage_params;
 			if (strcmp(node_stage->name(), "name") == 0) {
 				stage_name = std::string(node_stage->value());
 			} else if (strcmp(node_stage->name(), "param") == 0) {
@@ -118,16 +121,10 @@ void input::processConfigFile(string filename, bool verbose) {
 				}
 				this_stage_params[param_name] = param_value;
 			}
-			try {
-				input::stage_parameters[process_stages_mapping.at(stage_name)] = this_stage_params;
-			} catch (const std::exception& e) {
-				if (strcmp("invalid map<K, T> key", (&e)->what()) == 0) {
-					throw_error(CINPUT_UNRECOGNISED_STAGE);
-				}
-			}
 		}
 		try {
 			input::stages.push_back(process_stages_mapping.at(stage_name));
+			input::stage_parameters[process_stages_mapping.at(stage_name)] = this_stage_params;
 		}
 		catch (const std::exception& e) {
 			if (strcmp("invalid map<K, T> key", (&e)->what()) == 0) {
@@ -145,8 +142,7 @@ void input::processConfigFile(string filename, bool verbose) {
 
 void input::processFITSFile(string filename, bool verbose) {
 	/*
-    This function takes a FITS file and processes it, reading the FITS file data and dimensions into the class variables 
-	[data] and [dim].
+    Take a FITS file and process it, reading the FITS file data and dimensions into the class variables [data] and [dim].
 	*/
 	input::readFITSFile(input::data, input::dim, filename, verbose);
 	if (verbose) {
@@ -191,9 +187,10 @@ void input::processSimulationParametersFile(string filename, bool verbose) {
 	}
 }
 
+
 void input::readFITSFile(std::valarray<double> &data, std::vector<long> &dim, string filename, bool verbose) {
 	/*
-	This function reads the data from a FITS file with a given file path [filename] into a valarray [data], 
+	Read the data from a FITS file with a given file path [filename] into a valarray [data], 
 	populating [dim] with the dimensions of the image.
 	*/
 	std::auto_ptr<FITS> pInfile;
