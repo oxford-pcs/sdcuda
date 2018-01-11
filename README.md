@@ -1,11 +1,15 @@
 # sdcuda
 Perform spectral deconvolution on a CUDA enabled machine.
 
+# Dependencies
+
+Three external libraries are required to build sdcuda: CCfits, CUDA and CULA. 
+
+CULA is a proprietary library that is free to use for academic purposes. 
+
 # Building
 
 ## VS Project
-
-The build uses three external libraries: CCfits, CUDA and CULA. CULA is a proprietary library that is free to use for academic purposes. 
 
 To build from scratch, first switch the active build to x64:
 
@@ -31,12 +35,12 @@ The CULA and CUDA .dlls need to be placed in the executable directory (cublas64\
 
 ## Configuration
 
-The device tag defines attributes related to the CPU processing. The program's configuration parameters are stored in the distribution's `config.xml` file. 
+The program's configuration parameters are stored in the distribution's `config.xml` file. 
 There are three distinct sections under the XML root: `<host>`, `<device>` and `<process>`.
 
 ### `<host>`
 
-A host item is encapsulated with a `<param>` tag, each of which should have `<name>`, `<value>` and `<description>` tags. The description tag is purely aesthetic. 
+The host tag defines attributes related to the GPU processing. A host item is encapsulated with a `<param>` tag, each of which should have `<name>`, `<value>` and `<description>` tags. The description tag is purely aesthetic. 
 Recognised parameter name/values are:
 
 - nCPUCORES (int) - The number of CPU cores to use in multiprocessing. Setting this parameter too high will move the bottleneck to CPU memory.
@@ -66,22 +70,25 @@ The binary is called with the following command line parameters (with correspond
 
 e.g. `sdcuda -i "C:\Users\barnsley\Desktop\HARMONI-HC_data\in.fits" -p "C:\Users\barnsley\Desktop\HARMONI-HC_data\parameters.xml" -c "C:\Users\barnsley\Documents\Visual Studio 2013\Projects\sdcuda\config.xml" -o "C:\Users\barnsley\Desktop\HARMONI-HC_data\out.fits"`
 
-# Architecture
+# Architecture Overview
 
-The design of the program revolves around the `cube` class type and its two derived classes `hcube` and `dcube`. The prefixes of the two derived classes denote 
-where the data will physically reside, either on the host (h) or on the device (d). 
+On program execution, a `clparser` instance is invoked to parse the command line parameters. On success, an `input` instance is then spawned. This instance reads 
+in the input FITS file, required simulation parameters and builds the process chain.
 
-Although the program takes a 4D file as input, with separation integrations for each rotator position (as required by ADI), a `cube` instance is defined as a 
-datacube in the traditional sense, with two spatial axes and one spectral. Each cube houses the location of its data in a vector container of `spslice` type, 
-with derived classes `hspslice` and `dspslice`. Note that data on the device cannot be read outside of a device function and must be copied to the host - not 
-doing so will yield a segfault.
+Following this, a loop is entered whereby new `process` instances are spawned while the number of concurrent running processes < `nCPUCORES`. Each process 
+instance reduces a single detector integration time in the input 4D cube (x, y, DIT, wavelength). The separate integration times correspond to different 
+rotator positions (as required by ADI). 
 
-To decompose the 4D input, each integration is put in to a queue with maximum concurrent integration reductions defined by the `host` parameter `nCPUCORES`. The 
-corresponding cube for the integration is then constructed before processing.
+The primary constructs for the program are derived from the `cube` class type, namely `hcube` and `dcube`. The prefixes of these classes denote 
+where the data will physically reside, either on the host (h) or on the device (d), and are common nomenclature elsewhere too.
+
+A `cube` instance is defined as a datacube in the traditional sense, with two spatial axes and one spectral, and contains a vector container of `spslice` type. 
+The `spslice` class has two derived classes, `hspslice` and `dspslice`, both of which house a pointer, `p_data`, to the block of memory containing the data for 
+the corresponding slice.
 
 # Common How-Tos
 
-## Adding a Process 
+## Adding a New Process 
 
 To create a new process stage, the following sequence of events should be followed:
 
